@@ -17,7 +17,7 @@ public class HzbDepthTexMaker : MonoBehaviour
         hzbMat = new Material(hzbShader);
         Camera.main.depthTextureMode |= DepthTextureMode.Depth;
 
-        hzbDepth = new RenderTexture(1024, 1024, 0, RenderTextureFormat.RHalf);
+        hzbDepth = new RenderTexture(HizCulling.MapSize, HizCulling.MapSize, 0, RenderTextureFormat.RFloat);
         hzbDepth.autoGenerateMips = false;
 
         hzbDepth.useMipMap = true;
@@ -123,6 +123,7 @@ public class HzbDepthTexMaker : MonoBehaviour
             if (lastRt == null)
             {
               //  hzbMat.SetTexture(ID_DepthTexture, Shader.GetGlobalTexture("_CameraDepthTexture"));
+                // var texture = Shader.GetGlobalTexture("_CameraDepthTexture");
                 Graphics.Blit(Shader.GetGlobalTexture("_CameraDepthTexture"), tempRT);
             }
             else

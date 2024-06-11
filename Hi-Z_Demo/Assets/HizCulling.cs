@@ -12,12 +12,14 @@ public class HizCulling : MonoBehaviour
     private AABBMgr aabb;
 
     private int kernelId;
+    public static int MapSize = 256;
 
     // Start is called before the first frame update
     void Start()
     {
         aabb = FindObjectOfType<AABBMgr>();
         kernelId = cullShader.FindKernel("CullingFrag");
+        Debug.Log($"cell:{1.0 / MapSize}");
     }
 
     // Update is called once per frame
@@ -29,11 +31,7 @@ public class HizCulling : MonoBehaviour
         {
             // GPUCull();
             CPUCull();
-            // isCulled = true;
-        }
-        else
-        {
-            aabb.ShowAll();
+            isCulled = true;
         }
     }
 
@@ -44,9 +42,18 @@ public class HizCulling : MonoBehaviour
 
         if (GUILayout.Button("是否剔除：" + (isCull ? "on" : "off")))
         {
+            aabb.UpdateInfo();
             isCull = !isCull;
+            isCulled = false;
         }
 
+        GUILayout.Space(500);
+        if (GUILayout.Button("显示所有"))
+        {
+            isCull = false;
+            aabb.ShowAll();
+        }
+        
         GUILayout.EndHorizontal(); // 结束水平布局
     }
 
@@ -59,7 +66,7 @@ public class HizCulling : MonoBehaviour
         cullShader.SetTexture(kernelId, "_sizeTexture", center);
         cullShader.SetTexture(kernelId, "_DepthPyramidTex", HzbInstance.HZB_Depth);
         cullShader.SetVector("_MipmapLevelMinMaxIndex", new Vector4(0, HzbInstance.HZB_Depth.descriptor.mipCount - 1));
-        cullShader.SetVector("_Mip0Size", new Vector4(1024, 1024));
+        cullShader.SetVector("_Mip0Size", new Vector4(MapSize, MapSize));
         cullShader.SetFloat("_width", aabb.Size);
         var resultBuffer = new ComputeBuffer(aabb.Size * aabb.Size, sizeof(uint)); // 分配
         cullShader.SetBuffer(kernelId, "_Result", resultBuffer);
@@ -76,7 +83,7 @@ public class HizCulling : MonoBehaviour
         var (_, _, bounds) = aabb.GetAABBInfo();
         NativeArray<bool> result = new NativeArray<bool>(bounds.Length, Allocator.TempJob);
         NativeArray<Bounds> aabbs = new NativeArray<Bounds>(bounds.Length, Allocator.TempJob);
-        NativeArray<float> buffer = new NativeArray<float>(1024 * 1024, Allocator.TempJob);
+        NativeArray<float> buffer = new NativeArray<float>(MapSize * MapSize, Allocator.TempJob);
 
         for (int i = 0; i < bounds.Length; i++)
         {
@@ -102,6 +109,10 @@ public class HizCulling : MonoBehaviour
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i].r;
+            if (buffer[i] > 0)
+            {
+                Debug.Log($"depth unity:{i} {buffer[i]}");
+            }
         }
         
         // 创建Texture2D并设置为可读写
@@ -117,21 +128,17 @@ public class HizCulling : MonoBehaviour
             int x = (i % renderTexture.width) / 2;
             int y = (i / renderTexture.width) / 2;
             var color = pixels[i];
-            pixel1s[x + y * sp.sprite.texture.width] = new Color(color.r, color.g, color.b, 256);  //new Color32((byte)(results[i].x * 255), (byte)(results[i].y * 255), (byte)(results[i].z * 255), (byte)(results[i].w * 255));
+            pixel1s[x + y * sp.sprite.texture.width] = new Color(color.r, color.g, color.b, 255);  //new Color32((byte)(results[i].x * 255), (byte)(results[i].y * 255), (byte)(results[i].z * 255), (byte)(results[i].w * 255));
         }
         // 设置像素数据到目标纹理
         sp.sprite.texture.SetPixels32(pixel1s);
         // 应用纹理数据
         sp.sprite.texture.Apply();
 
-        int textureWidth = 1024;
-#if UNITY_REVERSED_Z
-       bool usesReversedZBuffe = true;
-#else
-        bool usesReversedZBuffe = false;
-#endif
+        int textureWidth = MapSize;
+        bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
         float4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
-        Vector2Int mip0SizeVector = new Vector2Int(1024, 1024);
+        Vector2Int mip0SizeVector = new Vector2Int(MapSize, MapSize);
 
         var job = new HizCullJob()
         {
