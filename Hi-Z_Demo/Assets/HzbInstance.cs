@@ -101,7 +101,18 @@ public class HzbInstance : MonoBehaviour {
 	}
 
 	// Update is called once per frame
+	public float mouseSensitivity = 10.0f;
 	void Update() {
+	
+
+		if (Input.GetMouseButton(0))
+		{
+			//摄像机转动
+			float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
+
+			Camera.main.transform.Rotate(0, -mouseX, 0);
+		}
+		
 		// Camera.main.transform.position += Camera.main.transform.right * Time.deltaTime *5* (Mathf.Sin(Time.timeSinceLevelLoad ) > 0 ? 1 : -1);
 	//	Camera.main.transform.Rotate(Vector3.up, -Time.deltaTime * 60);
 		if (computeshaderMode == false) return;
@@ -109,7 +120,7 @@ public class HzbInstance : MonoBehaviour {
 		{
 			culling();
 		}
-		Graphics.DrawMeshInstancedIndirect(mesh, 0, drawMat, bounds, bufferWithArgs, 0, null, ShadowCastingMode.Off, false);
+		// Graphics.DrawMeshInstancedIndirect(mesh, 0, drawMat, bounds, bufferWithArgs, 0, null, ShadowCastingMode.Off, false);
 	}
 
 

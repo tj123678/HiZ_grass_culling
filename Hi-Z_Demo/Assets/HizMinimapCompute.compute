@@ -1,0 +1,141 @@
+﻿Texture2D<float> _InputDepth;
+
+RWTexture2D<float>  _DepthMipChain;
+
+
+#if UNITY_REVERSED_Z
+# define MIN_DEPTH(l, r) min(l, r)
+#else
+# define MIN_DEPTH(l, r) max(l, r)
+#endif
+
+#define GROUP_TILE_SIZE 8
+float4x4 _MipOffsetAndSizeArray;
+float4 _InputMipOffsetAndSize;
+float _MipCount;
+groupshared float _LDSDepths[GROUP_TILE_SIZE * GROUP_TILE_SIZE];
+
+[numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
+void CSMainMipmapGroup0(uint3 dispatchThreadId : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex, uint2 groupId : SV_GroupID,  uint3 groupThreadID : SV_GroupThreadID)
+{
+    uint2 curMipSize = _MipOffsetAndSizeArray[0].zw;
+    //Mip0从InputeTexture贴图下采样
+    float2 uv = dispatchThreadId.xy / float2(curMipSize);
+    uv = clamp(uv, 0, 1);
+    int2 texCrood = _InputMipOffsetAndSize.xy + uv * (_InputMipOffsetAndSize.zw);
+    uint2 maxIndex = _InputMipOffsetAndSize.xy + _InputMipOffsetAndSize.zw - 1;
+#ifdef _INPUTE_DEPTH_TEXTURE //第一次Dispath使用Depth Texture
+    float p00 = _InputDepth[min(texCrood + uint2(0, 0), maxIndex)];
+    float p01 = _InputDepth[min(texCrood + uint2(1, 0), maxIndex)];
+    float p10 = _InputDepth[min(texCrood + uint2(0, 1), maxIndex)];
+    float p11 = _InputDepth[min(texCrood + uint2(1, 1), maxIndex)];
+#else
+    float p00 = _DepthMipChain[min(texCrood + uint2(0, 0), maxIndex)];
+    float p01 = _DepthMipChain[min(texCrood + uint2(1, 0), maxIndex)];
+    float p10 = _DepthMipChain[min(texCrood + uint2(0, 1), maxIndex)];
+    float p11 = _DepthMipChain[min(texCrood + uint2(1, 1), maxIndex)];
+#endif
+    float4 depths = float4(p00, p10, p01, p11);
+    float minDepth = MIN_DEPTH(MIN_DEPTH(depths.x, depths.y), MIN_DEPTH(depths.z, depths.w));
+
+    if (all(dispatchThreadId.xy < curMipSize.xy))
+    {
+#ifndef _INPUTE_DEPTH_TEXTURE //第一次Dispath不存该MipLevel
+        _DepthMipChain[_MipOffsetAndSizeArray[0].xy + dispatchThreadId.xy] = minDepth;
+#endif
+        _LDSDepths[groupThreadIndex] = minDepth;
+    }
+    GroupMemoryBarrierWithGroupSync();
+    //Mip1
+    curMipSize = curMipSize >> 1;
+    uint preMipTileSize = GROUP_TILE_SIZE;
+    uint TileSize = GROUP_TILE_SIZE / 2; //线程数减半
+    float4 parentFurthestDeviceZ;
+    uint2 xy = min(groupThreadID.xy, TileSize - 1);
+    uint2 xy2 = xy * 2;//间隔索引:[0,2,4,6]
+    uint index0 = xy2.x + xy2.y * preMipTileSize;
+    uint index1 = (xy2.x + 1) + xy2.y * preMipTileSize;
+    uint index2 = xy2.x + (xy2.y + 1) * preMipTileSize;
+    uint index3 = (xy2.x + 1) + (xy2.y + 1) * preMipTileSize;
+
+    parentFurthestDeviceZ.x = _LDSDepths[index0];
+    parentFurthestDeviceZ.y = _LDSDepths[index1];
+    parentFurthestDeviceZ.z = _LDSDepths[index2];
+    parentFurthestDeviceZ.w = _LDSDepths[index3];
+
+    float furthestDeviceZ = MIN_DEPTH(MIN_DEPTH(parentFurthestDeviceZ.x, parentFurthestDeviceZ.y), MIN_DEPTH(parentFurthestDeviceZ.z, parentFurthestDeviceZ.w));
+    uint2 localIndex = dispatchThreadId.xy - (groupId.xy * (GROUP_TILE_SIZE - TileSize));//因为过滤了3/4的线程组,所以线程索引需要往前补上 
+
+    if (all(localIndex < curMipSize.xy) //索引在贴图范围内的
+        && all(groupThreadID.xy < TileSize) //每次每个线程组保留1/4的线程
+        )
+    {
+#ifndef _INPUTE_DEPTH_TEXTURE //第一次Dispath不存该MipLevel
+        _DepthMipChain[_MipOffsetAndSizeArray[1].xy + localIndex] = furthestDeviceZ;
+#endif
+        int threadIndex = xy.x + xy.y * TileSize;
+        _LDSDepths[threadIndex] = furthestDeviceZ;
+    }
+
+    //Mip2
+    GroupMemoryBarrierWithGroupSync();
+
+    curMipSize = curMipSize >> 1;
+    preMipTileSize = TileSize;
+    TileSize = TileSize / 2; //线程数减半
+    xy = min(groupThreadID.xy, TileSize - 1);
+    xy2 = xy * 2;//间隔索引:[0,2,4,6]
+    index0 = xy2.x + xy2.y * preMipTileSize;
+    index1 = (xy2.x + 1) + xy2.y * preMipTileSize;
+    index2 = xy2.x + (xy2.y + 1) * preMipTileSize;
+    index3 = (xy2.x + 1) + (xy2.y + 1) * preMipTileSize;
+
+    parentFurthestDeviceZ.x = _LDSDepths[index0];
+    parentFurthestDeviceZ.y = _LDSDepths[index1];
+    parentFurthestDeviceZ.z = _LDSDepths[index2];
+    parentFurthestDeviceZ.w = _LDSDepths[index3];
+
+    GroupMemoryBarrierWithGroupSync();
+    furthestDeviceZ = MIN_DEPTH(MIN_DEPTH(parentFurthestDeviceZ.x, parentFurthestDeviceZ.y), MIN_DEPTH(parentFurthestDeviceZ.z, parentFurthestDeviceZ.w));
+    localIndex = dispatchThreadId.xy - (groupId.xy * (GROUP_TILE_SIZE - TileSize));//因为过滤了3/4的线程组,所以线程索引需要往前补上 
+
+    if (all(localIndex < curMipSize.xy) //索引在贴图范围内的
+        && all(groupThreadID.xy < TileSize) //每次每个线程组保留1/4的线程
+        )
+    {
+#ifndef _INPUTE_DEPTH_TEXTURE //第一次Dispath不存该MipLevel
+        _DepthMipChain[_MipOffsetAndSizeArray[2].xy + localIndex] = furthestDeviceZ;
+#endif
+        int threadIndex = xy.x + xy.y * TileSize;
+        _LDSDepths[threadIndex] = furthestDeviceZ;
+    }
+
+    //Mip3
+    GroupMemoryBarrierWithGroupSync();
+
+    curMipSize = curMipSize >> 1;
+    preMipTileSize = TileSize;
+    TileSize = TileSize / 2; //线程数减半
+    xy = min(groupThreadID.xy, TileSize - 1);
+    xy2 = xy * 2;//间隔索引:[0,2,4,6]
+    index0 = xy2.x + xy2.y * preMipTileSize;
+    index1 = (xy2.x + 1) + xy2.y * preMipTileSize;
+    index2 = xy2.x + (xy2.y + 1) * preMipTileSize;
+    index3 = (xy2.x + 1) + (xy2.y + 1) * preMipTileSize;
+
+    parentFurthestDeviceZ.x = _LDSDepths[index0];
+    parentFurthestDeviceZ.y = _LDSDepths[index1];
+    parentFurthestDeviceZ.z = _LDSDepths[index2];
+    parentFurthestDeviceZ.w = _LDSDepths[index3];
+
+    GroupMemoryBarrierWithGroupSync();
+    furthestDeviceZ = MIN_DEPTH(MIN_DEPTH(parentFurthestDeviceZ.x, parentFurthestDeviceZ.y), MIN_DEPTH(parentFurthestDeviceZ.z, parentFurthestDeviceZ.w));
+    localIndex = dispatchThreadId.xy - (groupId.xy * (GROUP_TILE_SIZE - TileSize));//因为过滤了3/4的线程组,所以线程索引需要往前补上 
+
+    if (all(localIndex < curMipSize.xy) //索引在贴图范围内的
+        && all(groupThreadID.xy < TileSize) //每次每个线程组保留1/4的线程
+        )
+    {
+        _DepthMipChain[_MipOffsetAndSizeArray[3].xy + localIndex] = furthestDeviceZ;
+    }
+}

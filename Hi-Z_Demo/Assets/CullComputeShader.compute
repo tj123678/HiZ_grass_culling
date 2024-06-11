@@ -1,0 +1,94 @@
+﻿#pragma kernel CullingFrag
+
+RWBuffer<uint> _Result;
+
+Texture2D _centerTexture;//aabb 中心点
+Texture2D _sizeTexture;//aabb 尺寸
+Texture2D _DepthPyramidTex;//深度图（不同minimap集合）
+float4x4 _GPUCullingVP;//投影矩阵
+float2 _MipmapLevelMinMaxIndex;//minimap 对应的对应的最小和最大级别
+float2 _Mip0Size;//minimap 0 级尺寸
+float _width;//要处理的texture的大小
+
+float3 TransferNDC(float3 pos)
+{
+    float4 ndc = mul(_GPUCullingVP, float4(pos, 1.0));
+    ndc.xyz /= ndc.w;
+    ndc.xy = ndc.xy * 0.5f + 0.5f;
+    ndc.y = 1 - ndc.y;
+    return ndc.xyz;
+}
+
+[numthreads(8,8,1)]
+void CullingFrag(uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = id.xy;
+    float4 aabbCenter = _centerTexture[uv];
+    float4 aabbSize = _sizeTexture[uv];
+    float3 aabbExtent = aabbSize.xyz * 0.5; //贴图可以直接存extent
+
+    if (aabbCenter.a == 0.0)
+    {
+        return;
+    }
+    float3 aabbMin = aabbCenter.xyz - aabbExtent;
+    float3 aabbMax = aabbCenter.xyz + aabbExtent;
+
+    float3 pos0 = float3(aabbMin.x, aabbMin.y, aabbMin.z);
+    float3 pos1 = float3(aabbMin.x, aabbMin.y, aabbMax.z);
+    float3 pos2 = float3(aabbMin.x, aabbMax.y, aabbMin.z);
+    float3 pos3 = float3(aabbMax.x, aabbMin.y, aabbMin.z);
+    float3 pos4 = float3(aabbMax.x, aabbMax.y, aabbMin.z);
+    float3 pos5 = float3(aabbMax.x, aabbMin.y, aabbMax.z);
+    float3 pos6 = float3(aabbMin.x, aabbMax.y, aabbMax.z);
+    float3 pos7 = float3(aabbMax.x, aabbMax.y, aabbMax.z);
+
+
+    float3 ndc = TransferNDC(pos0);
+    float3 ndcMax = ndc;
+    float3 ndcMin = ndc;
+    ndc = TransferNDC(pos1);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos2);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos3);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos4);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos5);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos6);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+    ndc = TransferNDC(pos7);
+    ndcMax = max(ndc, ndcMax);
+    ndcMin = min(ndc, ndcMin);
+
+    float2 ndcSize = floor((ndcMax.xy - ndcMin.xy) * _Mip0Size);
+    float raidus = max(ndcSize.x, ndcSize.y);
+    int mip = ceil(log2(raidus));
+    mip = clamp(mip, _MipmapLevelMinMaxIndex.x, _MipmapLevelMinMaxIndex.y);
+    uint texScale = 1 << mip;
+    uint mipSize = _Mip0Size / texScale;
+    
+    int4 pxMinMax = float4(ndcMin.xy, ndcMax.xy) * mipSize;
+    
+    float d0 = _DepthPyramidTex[pxMinMax.xy]; // lb
+    float d1 = _DepthPyramidTex[pxMinMax.zy]; // rb
+    float d2 = _DepthPyramidTex[pxMinMax.xw]; // lt
+    float d3 = _DepthPyramidTex[pxMinMax.zw]; // rt
+
+    uint globalIndex = id.x + id.y * _width;
+    #if UNITY_REVERSED_Z
+        float minDepth = min(min(min(d0, d1), d2), d3);
+        Result[globalIndex] = ndcMax.z < minDepth ? 1 : 0;
+    #else
+        float maxDepth = max(max(max(d0, d1), d2), d3);
+        _Result[globalIndex] = maxDepth > ndcMax.z ? 1 : 0;
+    #endif
+}

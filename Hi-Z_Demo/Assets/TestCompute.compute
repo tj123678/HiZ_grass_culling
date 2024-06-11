@@ -1,0 +1,32 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWBuffer<float4> Result;
+Texture2D input;
+float width;
+float height;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // 确保线程ID在纹理尺寸范围内
+    if (id.x < width && id.y < height)
+    {
+        // 使用Load读取纹理数据
+        float4 color = input[id.xy];//Load(int3(id.xy, 0));
+        
+        // 将结果写入Buffer
+        // 计算全局索引
+        uint globalIndex = id.x + id.y * width;
+        Result[globalIndex] = color;
+    }
+}
+
+// // 计算当前线程处理的像素位置
+// uint2 texCoords = id.xy;
+// float4 texColor = input.Load(uint2(texCoords.x, sourceTexture.height - texCoords.y - 1));
+//     
+// // 将红色通道的值写入结果Buffer
+// Result[texCoords.x + texCoords.y * sourceTexture.width] = texColor.r;
