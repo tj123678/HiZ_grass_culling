@@ -108,9 +108,9 @@ public class HzbInstance : MonoBehaviour {
 		if (Input.GetMouseButton(0))
 		{
 			//摄像机转动
-			float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
+			float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime*0.1f;
 
-			Camera.main.transform.Rotate(0, -mouseX, 0);
+			// Camera.main.transform.Rotate(0, -mouseX, 0);
 		}
 		
 		// Camera.main.transform.position += Camera.main.transform.right * Time.deltaTime *5* (Mathf.Sin(Time.timeSinceLevelLoad ) > 0 ? 1 : -1);

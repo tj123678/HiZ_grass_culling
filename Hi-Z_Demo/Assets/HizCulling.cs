@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 
 public class HizCulling : MonoBehaviour
@@ -18,6 +19,8 @@ public class HizCulling : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        isRequest = false;
+        Application.targetFrameRate = 30;
         aabb = FindObjectOfType<AABBMgr>();
         kernelId = cullShader.FindKernel("CullingFrag");
         Debug.Log($"cell:{1.0 / MapSize}");
@@ -31,8 +34,9 @@ public class HizCulling : MonoBehaviour
         if (isCull && !isCulled)
         {
             // GPUCull();
-            CPUCull();
-            isCulled = true;
+            if (isRequest) return;
+            StartCoroutine(CPUCull());
+            // isCulled = true;
         }
     }
 
@@ -40,7 +44,6 @@ public class HizCulling : MonoBehaviour
     {
         GUILayout.BeginHorizontal(); // 开始一个水平布局
         GUILayout.Space(500); // 填充空白，将按钮推向右侧
-
         if (GUILayout.Button("是否剔除：" + (isCull ? "on" : "off")))
         {
             aabb.UpdateInfo();
@@ -56,55 +59,65 @@ public class HizCulling : MonoBehaviour
         }
         
         GUILayout.EndHorizontal(); // 结束水平布局
+        
+        float deltaTime = Time.unscaledDeltaTime;
+        long lastFrameTimeNs = System.DateTime.Now.Ticks * 100; // 转换为纳秒
+        long currentFrameTimeNs = lastFrameTimeNs + (long)(deltaTime * 1000000000);
+        float fps = 1.0f / ((currentFrameTimeNs - lastFrameTimeNs) / 1000000000.0f);
+
+        // 设置要显示的文本内容
+        string fpsText = "FPS: " + string.Format("{0:F2}", fps);
+
+        // 设置文本的样式，这里只是设置了一些基本样式，你可以根据需要自定义
+        GUIStyle style = new GUIStyle(GUI.skin.label);
+        style.fontSize = 20;
+        style.normal.textColor = Color.white; // 设置文本颜色为白色
+
+        // 计算文本的矩形位置，这里我们将其放在屏幕的左上角
+        Rect rect = new Rect(200, 10, 200, 40);
+
+        // 在屏幕上绘制文本
+        GUI.Label(rect, fpsText, style);
     }
 
     private int[] depthMpID;
     private void GPUCull()
     {
-        if (depthMpID == null)
-        {
-            depthMpID = new int[32];
-            for (int i = 0; i < depthMpID.Length; i++)
-            {
-                depthMpID[i] = Shader.PropertyToID("_DepthMip" + i);
-            }
-        }
-        var (center, zise, _) = aabb.GetAABBInfo();
-        var hizTexture = HzbInstance.HZB_Depth;
+        // if (depthMpID == null)
+        // {
+        //     depthMpID = new int[32];
+        //     for (int i = 0; i < depthMpID.Length; i++)
+        //     {
+        //         depthMpID[i] = Shader.PropertyToID("_DepthMip" + i);
+        //     }
+        // }
+        // var (center, zise, _) = aabb.GetAABBInfo();
+        // var hizTexture = HzbInstance.HZB_Depth;
+        // CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
+        // cmd.SetGlobalTexture("_InputDepth",new RenderTargetIdentifier("_CameraDepthTexture"));
+        // cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
+        // //降采样Depth
+        // for (int i = 0; i < 8; i++)
+        // {
+        //     
+        // }
+
         CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
-        cmd.SetGlobalTexture("_InputDepth",new RenderTargetIdentifier("_CameraDepthTexture"));
-        cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
-        //降采样Depth
-        for (int i = 0; i < 8; i++)
-        {
-            
-        }
+        var world2Project = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
+        cmd.SetGlobalTexture("_ObjectAABBTexture0",aabb._centerTexture);
+        cmd.SetGlobalTexture("_ObjectAABBTexture1",aabb._sizeTexture);
+        cmd.SetGlobalMatrix("_GPUCullingVP",world2Project);
+        var screen = new Vector2(MapSize, MapSize);
+        cmd.SetGlobalVector("_Mip0Size", new Vector4(screen.x, screen.y));
+        // cmd.SetRenderTarget();
 
-
-
-        /*
-        var m = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
-        var (center, zise, _) = aabb.GetAABBInfo();
-        cullShader.SetMatrix("_GPUCullingVP", m);
-        cullShader.SetTexture(kernelId, "_centerTexture", center);
-        cullShader.SetTexture(kernelId, "_sizeTexture", center);
-        cullShader.SetTexture(kernelId, "_DepthPyramidTex", HzbInstance.HZB_Depth);
-        cullShader.SetVector("_MipmapLevelMinMaxIndex", new Vector4(0, HzbInstance.HZB_Depth.descriptor.mipCount - 1));
-        cullShader.SetVector("_Mip0Size", new Vector4(MapSize, MapSize));
-        cullShader.SetFloat("_width", aabb.Size);
-        var resultBuffer = new ComputeBuffer(aabb.Size * aabb.Size, sizeof(uint)); // 分配
-        cullShader.SetBuffer(kernelId, "_Result", resultBuffer);
-        cullShader.Dispatch(kernelId, Mathf.CeilToInt(aabb.Size / 8.0f), Mathf.CeilToInt(aabb.Size / 8.0f), 1);
-
-        var results = new uint[aabb.Size * aabb.Size];
-        resultBuffer.GetData(results);
-        aabb.UpdateRender(results);
-        */
     }
 
-    public SpriteRenderer sp;
-    private void CPUCull()
+    private bool isRequest;
+    private int frameCount = 0;
+    private IEnumerator CPUCull()
     {
+        isRequest = true;
         var (_, _, bounds) = aabb.GetAABBInfo();
         NativeArray<bool> result = new NativeArray<bool>(bounds.Length, Allocator.TempJob);
         NativeArray<Bounds> aabbs = new NativeArray<Bounds>(bounds.Length, Allocator.TempJob);
@@ -120,51 +133,49 @@ public class HizCulling : MonoBehaviour
 
         // 确保RenderTexture是活动的
         RenderTexture.active = renderTexture;
+        
+        // // 创建一个Texture2D来存储RenderTexture的数据
+        // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
+        // // 从RenderTexture复制像素数据到Texture2D
+        // targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        // targetTexture.Apply();
+        // var pixels1 = targetTexture.GetPixels();
+        // // 创建一个Color数组来存储像素数据
+        // for (int i = 0; i < pixels1.Length; i++)
+        // {
+        //     buffer[i] = pixels1[i].r / 255f;
+        //     if (buffer[i] > 0)
+        //     {
+        //         Debug.Log($"depth1 unity:{i} {pixels1[i].r} {buffer[i]}");
+        //     }
+        // }
 
-        // 创建一个Texture2D来存储RenderTexture的数据
-        Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
 
-        // 从RenderTexture复制像素数据到Texture2D
-        targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        targetTexture.Apply();
+        frameCount = Time.frameCount;
+        var req = AsyncGPUReadback.Request(renderTexture, 0, renderTexture.graphicsFormat);
+        
+        yield return new WaitUntil(() => req.done);
 
+        // Debug.Log($"frame count:{Time.frameCount - frameCount}");
+        
+        float[] pixels = req.GetData<float>().ToArray();
+        
         // 创建一个Color数组来存储像素数据
-        Color[] pixels = targetTexture.GetPixels();
-
         for (int i = 0; i < pixels.Length; i++)
         {
-            buffer[i] = pixels[i].r;
+            buffer[i] = pixels[i];
             if (buffer[i] > 0)
             {
-                Debug.Log($"depth unity:{i} {buffer[i]}");
+                // Debug.Log($"depth unity:{i} {buffer[i]}");
             }
         }
         
-        // 创建Texture2D并设置为可读写
-        // 填充纹理数据，这里只是示例，将纹理填充为纯色
-        // 创建像素数组
-        Color32[] pixel1s = new Color32[sp.sprite.texture.width * sp.sprite.texture.height];
-
-        // 填充像素数组
-        for (int i = 0; i < pixels.Length; i++)
-        {
-            // 将结果复制到目标纹理的像素数组中，这里假设进行某种形式的映射或缩放
-            // 例如，这里简单地将 16x16 的纹理数据复制到 32x32 的纹理的左上角
-            int x = (i % renderTexture.width) / 2;
-            int y = (i / renderTexture.width) / 2;
-            var color = pixels[i];
-            pixel1s[x + y * sp.sprite.texture.width] = new Color(color.r, color.g, color.b, 255);  //new Color32((byte)(results[i].x * 255), (byte)(results[i].y * 255), (byte)(results[i].z * 255), (byte)(results[i].w * 255));
-        }
-        // 设置像素数据到目标纹理
-        sp.sprite.texture.SetPixels32(pixel1s);
-        // 应用纹理数据
-        sp.sprite.texture.Apply();
-
+        
         int textureWidth = MapSize;
         bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
         float4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
         Vector2Int mip0SizeVector = new Vector2Int(MapSize, MapSize);
-
+        
         var job = new HizCullJob()
         {
             result = result,
@@ -187,6 +198,7 @@ public class HizCulling : MonoBehaviour
         result.Dispose();
         aabbs.Dispose();
         buffer.Dispose();
-        Destroy(targetTexture);
+        
+        isRequest = false;
     }
 }

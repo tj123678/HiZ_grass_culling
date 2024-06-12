@@ -6,8 +6,8 @@ using UnityEngine;
 public class AABBMgr : MonoBehaviour
 {
     private MeshRenderer[] _renderers;
-    private Texture2D _centerTexture;//保存包围盒center信息
-    private Texture2D _sizeTexture;//保存包围盒size信息
+    public Texture2D _centerTexture;//保存包围盒center信息
+    public Texture2D _sizeTexture;//保存包围盒size信息
     private Color[] _centerInfos;
     private Color[] _sizeInfos;
     private Bounds[] _bounds;
@@ -133,6 +133,22 @@ public class AABBMgr : MonoBehaviour
                 _sizeInfos[i] = new Color(size.x, size.y, size.z, 1);
                 _bounds[i] = aabb;
             }
+            else
+            {
+                _centerInfos[i]=Color.black;
+                _sizeInfos[i]=Color.black;
+            }
         }
+        
+        for (int i = _renderers.Length; i < _centerInfos.Length; i++)
+        {
+            _centerInfos[i]=Color.clear;
+            _sizeInfos[i]=Color.clear;
+        }
+        
+        _centerTexture.SetPixels(_centerInfos, 0);
+        _centerTexture.Apply();
+        _sizeTexture.SetPixels(_sizeInfos, 0);
+        _sizeTexture.Apply();
     }
 }

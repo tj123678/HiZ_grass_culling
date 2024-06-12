@@ -26,11 +26,11 @@ struct HizCullJob : IJobParallelFor
     public int mipMaxIndex;
     public void Execute(int index)
     {
-        Debug.Log($"1index:{index} {dataVail}");
+        Log($"1index:{index} {dataVail}");
         if (dataVail)
         {
             bool needCull = IsHizCulled(index);
-            Debug.Log($"4index:{index} {needCull}");
+            Log($"4index:{index} {needCull}");
             result[index] = needCull;
         }
         else 
@@ -92,7 +92,7 @@ struct HizCullJob : IJobParallelFor
         //上一帧不在屏幕内
         float4 ndcXY = math.float4(ndcMin.xy, ndcMax.xy);
         float2 ndcZ =  math.float2(ndcMin.z, ndcMax.z);
-        Debug.Log($"2index:{index} {ndcXY} {ndcZ}");
+        Log($"2index:{index} {ndcXY} {ndcZ}");
         if (math.any(ndcXY < 0f) || math.any(ndcXY > 1f)
             ||  math.any(ndcZ < 0f)   || math.any(ndcZ > 1f)
             )
@@ -127,21 +127,26 @@ struct HizCullJob : IJobParallelFor
         float d2 = buffer[index23.x];
         float d3 = buffer[index23.y];
 
-        Debug.Log($"3index:{index} {index01} {index23} {index} {d0} {d1} {d2} {d3}  {ndcMax.z}");
+        Log($"3index:{index} {index01} {index23} {index} {d0} {d1} {d2} {d3}  {ndcMax.z}");
         if (usesReversedZBuffer)
         {
             float minDepth = math.min(math.min(math.min(d0, d1),d2),d3);
-            Debug.Log($"5index:{index} {ndcMax.z} {minDepth} { Math.Round(ndcMax.z, 3)},{Math.Round(minDepth, 3)}");
+            Log($"5index:{index} {ndcMax.z} {minDepth} { Math.Round(ndcMax.z, 3)},{Math.Round(minDepth, 3)}");
             //这里之所以要保留3位有效数字，是因为从unity 深度图获取的 深度，与 这里计算的深度始终不能完全对上，只有前3位是相同的
-            return Math.Round(ndcMax.z, 3) < Math.Round(minDepth, 3);
-            // return ndcMax.z < minDepth;
+            // return Math.Round(ndcMax.z, 3) < Math.Round(minDepth, 3);
+            return ndcMax.z < minDepth;
         }
         else
         {
             float maxDepth = math.max(math.max(math.max(d0, d1), d2), d3);
-            Debug.Log($"6index:{index} {Math.Round(maxDepth, 3)},{Math.Round(ndcMin.z, 3)}");
-            return Math.Round(maxDepth, 3) > Math.Round(ndcMin.z, 3);
-            // return maxDepth > ndcMin.z;
+            Log($"6index:{index} {Math.Round(maxDepth, 3)},{Math.Round(ndcMin.z, 3)}");
+            // return Math.Round(maxDepth, 3) > Math.Round(ndcMin.z, 3);
+            return maxDepth > ndcMin.z;
         }
+    }
+
+    private void Log(string str)
+    {
+        // Debug.Log(str);
     }
 }
