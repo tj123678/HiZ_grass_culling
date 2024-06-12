@@ -4,6 +4,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 public class HizCulling : MonoBehaviour
 {
@@ -57,8 +58,31 @@ public class HizCulling : MonoBehaviour
         GUILayout.EndHorizontal(); // 结束水平布局
     }
 
+    private int[] depthMpID;
     private void GPUCull()
     {
+        if (depthMpID == null)
+        {
+            depthMpID = new int[32];
+            for (int i = 0; i < depthMpID.Length; i++)
+            {
+                depthMpID[i] = Shader.PropertyToID("_DepthMip" + i);
+            }
+        }
+        var (center, zise, _) = aabb.GetAABBInfo();
+        var hizTexture = HzbInstance.HZB_Depth;
+        CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
+        cmd.SetGlobalTexture("_InputDepth",new RenderTargetIdentifier("_CameraDepthTexture"));
+        cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
+        //降采样Depth
+        for (int i = 0; i < 8; i++)
+        {
+            
+        }
+
+
+
+        /*
         var m = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
         var (center, zise, _) = aabb.GetAABBInfo();
         cullShader.SetMatrix("_GPUCullingVP", m);
@@ -75,6 +99,7 @@ public class HizCulling : MonoBehaviour
         var results = new uint[aabb.Size * aabb.Size];
         resultBuffer.GetData(results);
         aabb.UpdateRender(results);
+        */
     }
 
     public SpriteRenderer sp;
