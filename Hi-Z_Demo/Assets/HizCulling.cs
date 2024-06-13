@@ -16,16 +16,17 @@ public class HizCulling : MonoBehaviour
 
     private int kernelId;
     public static int MapSize = 256;
+    private bool isOpenGl;
 
     // Start is called before the first frame update
     void Start()
     {
-        Debug.LogError($"supportsAsyncGPUReadback：{SystemInfo.supportsAsyncGPUReadback} {SystemInfo.usesReversedZBuffer}");
         isRequest = false;
         Application.targetFrameRate = 30;
         aabb = FindObjectOfType<AABBMgr>();
         kernelId = cullShader.FindKernel("CullingFrag");
-        Debug.Log($"cell:{1.0 / MapSize}");
+        isOpenGl = IsOpenGL();
+        Debug.Log($"cell:{1.0 / MapSize}  {isOpenGl}");
     }
 
     // Update is called once per frame
@@ -86,6 +87,18 @@ public class HizCulling : MonoBehaviour
 
         // 在屏幕上绘制文本
         GUI.Label(rect, fpsText, style);
+    }
+
+    private bool IsOpenGL()
+    {
+        switch (SystemInfo.graphicsDeviceType)
+        {
+            case GraphicsDeviceType.OpenGLCore:
+            case GraphicsDeviceType.OpenGLES2:
+            case GraphicsDeviceType.OpenGLES3:
+                return true;
+        }
+        return false;
     }
 
     private int[] depthMpID;
@@ -245,6 +258,7 @@ public class HizCulling : MonoBehaviour
             buffer = buffer,
             
             textureWidth = textureWidth,
+            isOpenGl = isOpenGl,
             usesReversedZBuffer = usesReversedZBuffe,
             world2HZB = world2HZB,
             mip0SizeVector = mip0SizeVector,

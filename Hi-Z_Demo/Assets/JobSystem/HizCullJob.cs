@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Permissions;
 using UnityEngine;
 using Unity.Collections;
 using Unity.Jobs;
@@ -19,6 +20,7 @@ struct HizCullJob : IJobParallelFor
     // public NativeArray<Vector2Int> mipLevelSizes;
     
     public int textureWidth;
+    public bool isOpenGl;
     public bool usesReversedZBuffer;
     public float4x4 world2HZB;
     public Vector2Int mip0SizeVector;
@@ -44,7 +46,10 @@ struct HizCullJob : IJobParallelFor
         ndc.xyz /= ndc.w;
         ndc.xy = ndc.xy * 0.5f + 0.5f;
         ndc.y = 1 - ndc.y;
-        Log($"4index:{0} {pos} {ndc.xyzw}");
+        if (isOpenGl)
+        {
+            ndc.z = ndc.z * 0.5f + 0.5f;
+        }
         return ndc.xyz;
     }
 
@@ -133,16 +138,14 @@ struct HizCullJob : IJobParallelFor
         {
             float minDepth = math.min(math.min(math.min(d0, d1),d2),d3);
             Log($"5index:{index} {ndcMax.z} {minDepth} { Math.Round(ndcMax.z, 3)},{Math.Round(minDepth, 3)}");
-            //这里之所以要保留3位有效数字，是因为从unity 深度图获取的 深度，与 这里计算的深度始终不能完全对上，只有前3位是相同的
-            // return Math.Round(ndcMax.z, 3) < Math.Round(minDepth, 3);
-            return ndcMax.z < minDepth;
+            //精确到6位小数
+            return Math.Round(ndcMax.z, 6) < Math.Round(minDepth, 6);
         }
         else
         {
             float maxDepth = math.max(math.max(math.max(d0, d1), d2), d3);
-            Log($"6index:{index} {Math.Round(maxDepth, 3)},{Math.Round(ndcMin.z, 3)}");
-            // return Math.Round(maxDepth, 3) > Math.Round(ndcMin.z, 3);
-            return maxDepth > ndcMin.z;
+            Log($"6index:{index} {ndcMin.z} {maxDepth}  {Math.Round(maxDepth, 3)},{Math.Round(ndcMin.z, 3)}");
+            return Math.Round(maxDepth, 6) > Math.Round(ndcMin.z, 6);
         }
     }
 
