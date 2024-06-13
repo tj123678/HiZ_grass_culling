@@ -44,6 +44,7 @@ struct HizCullJob : IJobParallelFor
         ndc.xyz /= ndc.w;
         ndc.xy = ndc.xy * 0.5f + 0.5f;
         ndc.y = 1 - ndc.y;
+        Log($"4index:{0} {pos} {ndc.xyzw}");
         return ndc.xyz;
     }
 
@@ -94,7 +95,7 @@ struct HizCullJob : IJobParallelFor
         float2 ndcZ =  math.float2(ndcMin.z, ndcMax.z);
         Log($"2index:{index} {ndcXY} {ndcZ}");
         if (math.any(ndcXY < 0f) || math.any(ndcXY > 1f)
-            ||  math.any(ndcZ < 0f)   || math.any(ndcZ > 1f)
+            //||  math.any(ndcZ < 0f)   || math.any(ndcZ > 1f)
             )
             return false;
         float2 mipOSize = math.float2(mip0SizeVector.x, mip0SizeVector.y);
@@ -147,6 +148,6 @@ struct HizCullJob : IJobParallelFor
 
     private void Log(string str)
     {
-        // Debug.Log(str);
+         Debug.LogError(str);
     }
 }

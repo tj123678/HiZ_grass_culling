@@ -24,7 +24,7 @@ public class HzbDepthTexMaker : MonoBehaviour
         hzbDepth.filterMode = FilterMode.Point;
         hzbDepth.Create();
         HzbInstance.HZB_Depth = hzbDepth;
-        Test();
+        // Test();
     }
 
     public ComputeShader computeShader;
@@ -87,15 +87,21 @@ public class HzbDepthTexMaker : MonoBehaviour
 
     int ID_DepthTexture;
     int ID_InvSize;
-#if UNITY_EDITOR
+
     void Update()
     {
-#else
+        // GenerateMinimap();
+    }
 
-    void OnPreRender()
+    void OnPostRender()
     {
-#endif
+        GenerateMinimap();
+    }
 
+    private bool isLog = false;
+    private void GenerateMinimap()
+    {
+        if(!isLog)Debug.LogError("GenerateMinimap start");
         if (stopMpde)
         {
 
@@ -122,7 +128,7 @@ public class HzbDepthTexMaker : MonoBehaviour
             tempRT.filterMode = FilterMode.Point;
             if (lastRt == null)
             {
-              //  hzbMat.SetTexture(ID_DepthTexture, Shader.GetGlobalTexture("_CameraDepthTexture"));
+                //  hzbMat.SetTexture(ID_DepthTexture, Shader.GetGlobalTexture("_CameraDepthTexture"));
                 // var texture = Shader.GetGlobalTexture("_CameraDepthTexture");
                 Graphics.Blit(Shader.GetGlobalTexture("_CameraDepthTexture"), tempRT);
             }
@@ -142,6 +148,8 @@ public class HzbDepthTexMaker : MonoBehaviour
 
         }
         RenderTexture.ReleaseTemporary(lastRt);
+        if(!isLog)Debug.LogError("GenerateMinimap end");
+        isLog = true;
     }
 
 }

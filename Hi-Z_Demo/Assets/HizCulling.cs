@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
@@ -19,6 +20,7 @@ public class HizCulling : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        Debug.LogError($"supportsAsyncGPUReadback：{SystemInfo.supportsAsyncGPUReadback} {SystemInfo.usesReversedZBuffer}");
         isRequest = false;
         Application.targetFrameRate = 30;
         aabb = FindObjectOfType<AABBMgr>();
@@ -36,15 +38,21 @@ public class HizCulling : MonoBehaviour
             // GPUCull();
             if (isRequest) return;
             StartCoroutine(CPUCull());
-            // isCulled = true;
+            isCulled = true;
         }
     }
 
     void OnGUI()
     {
+        GUILayout.BeginVertical();
+        // 在垂直布局中添加20像素的垂直空间
+        GUILayout.Space(50);
+        GUILayout.EndVertical();
+        
+        
         GUILayout.BeginHorizontal(); // 开始一个水平布局
         GUILayout.Space(500); // 填充空白，将按钮推向右侧
-        if (GUILayout.Button("是否剔除：" + (isCull ? "on" : "off")))
+        if (GUILayout.Button("是否剔除：" + (isCull ? "on" : "off"),GUILayout.ExpandWidth(true), GUILayout.Height(100)))
         {
             aabb.UpdateInfo();
             isCull = !isCull;
@@ -52,7 +60,7 @@ public class HizCulling : MonoBehaviour
         }
 
         GUILayout.Space(500);
-        if (GUILayout.Button("显示所有"))
+        if (GUILayout.Button("显示所有",GUILayout.ExpandWidth(true), GUILayout.Height(100)))
         {
             isCull = false;
             aabb.ShowAll();
@@ -134,21 +142,23 @@ public class HizCulling : MonoBehaviour
         // 确保RenderTexture是活动的
         RenderTexture.active = renderTexture;
         
-        // // 创建一个Texture2D来存储RenderTexture的数据
-        // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
-        // // 从RenderTexture复制像素数据到Texture2D
-        // targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        // targetTexture.Apply();
-        // var pixels1 = targetTexture.GetPixels();
-        // // 创建一个Color数组来存储像素数据
-        // for (int i = 0; i < pixels1.Length; i++)
-        // {
-        //     buffer[i] = pixels1[i].r / 255f;
-        //     if (buffer[i] > 0)
-        //     {
-        //         Debug.Log($"depth1 unity:{i} {pixels1[i].r} {buffer[i]}");
-        //     }
-        // }
+        // 创建一个Texture2D来存储RenderTexture的数据
+        Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
+        // 从RenderTexture复制像素数据到Texture2D
+        targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        targetTexture.Apply();
+        var pixels1 = targetTexture.GetPixels();
+        // 创建一个Color数组来存储像素数据
+        int logCount1 = 0;
+        for (int i = 0; i < pixels1.Length; i++)
+        {
+            buffer[i] = pixels1[i].r;
+            if (buffer[i] > 0 && buffer[i] < 1 && logCount1<10)
+            {
+                Debug.LogError($"depth1 unity:{i} {pixels1[i].r}");
+                logCount1++;
+            }
+        }
 
 
         frameCount = Time.frameCount;
@@ -161,19 +171,71 @@ public class HizCulling : MonoBehaviour
         float[] pixels = req.GetData<float>().ToArray();
         
         // 创建一个Color数组来存储像素数据
+        int logCount = 0;
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i];
-            if (buffer[i] > 0)
+            if (buffer[i] > 0 && buffer[i] < 1 && logCount<10)
             {
-                // Debug.Log($"depth unity:{i} {buffer[i]}");
+                Debug.LogError($"depth unity:{i} {buffer[i]}");
+                logCount++;
             }
         }
         
         
         int textureWidth = MapSize;
         bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
-        float4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
+        Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
+
+        var projectionMatrix = Camera.main.projectionMatrix;
+        for (int i = 0; i < 4; i++)
+        {
+            // 开始一行的字符串构建
+            string rowString = "[" + i + "] ";
+
+            // 遍历矩阵的列
+            for (int j = 0; j < 4; j++)
+            {
+                // 将矩阵元素格式化为字符串，并添加到行字符串
+                rowString += projectionMatrix[i, j].ToString("F3") + " ";
+            }
+
+            // 打印完成的行字符串
+            Debug.LogError($"Matrixlog projectionMatrix: {rowString}");
+        }
+        
+        for (int i = 0; i < 4; i++)
+        {
+            // 开始一行的字符串构建
+            string rowString = "[" + i + "] ";
+
+            // 遍历矩阵的列
+            for (int j = 0; j < 4; j++)
+            {
+                // 将矩阵元素格式化为字符串，并添加到行字符串
+                rowString += Camera.main.worldToCameraMatrix[i, j].ToString("F3") + " ";
+            }
+
+            // 打印完成的行字符串
+            Debug.LogError($"Matrixlog worldToCameraMatrix: {rowString}");
+        }
+        
+        for (int i = 0; i < 4; i++)
+        {
+            // 开始一行的字符串构建
+            string rowString = "[" + i + "] ";
+
+            // 遍历矩阵的列
+            for (int j = 0; j < 4; j++)
+            {
+                // 将矩阵元素格式化为字符串，并添加到行字符串
+                rowString += world2HZB[i, j].ToString("F3") + " ";
+            }
+
+            // 打印完成的行字符串
+            Debug.LogError($"Matrixlog world2HZB: {rowString}");
+        }
+        
         Vector2Int mip0SizeVector = new Vector2Int(MapSize, MapSize);
         
         var job = new HizCullJob()
