@@ -107,8 +107,9 @@ public class HzbDepthTexMaker : MonoBehaviour
 
             return;
         }
-        int w = hzbDepth.width;
-        int h = hzbDepth.height;
+
+        int w = hzbDepth.width * 2;
+        int h = hzbDepth.height * 2;
         int level = 0;
 
         RenderTexture lastRt = null;
@@ -137,14 +138,13 @@ public class HzbDepthTexMaker : MonoBehaviour
                 hzbMat.SetTexture(ID_DepthTexture, lastRt);
                 Graphics.Blit(null, tempRT, hzbMat);
                 RenderTexture.ReleaseTemporary(lastRt);
+                
+                Graphics.CopyTexture(tempRT, 0, 0, hzbDepth, 0, level);
+                level++;
             }
-            Graphics.CopyTexture(tempRT, 0, 0, hzbDepth, 0, level);
             lastRt = tempRT;
-
             w /= 2;
             h /= 2;
-            level++;
-
 
         }
         RenderTexture.ReleaseTemporary(lastRt);

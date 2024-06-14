@@ -45,10 +45,13 @@ struct HizCullJob : IJobParallelFor
         float4 ndc = math.mul(world2HZB, math.float4(pos, 1f));
         ndc.xyz /= ndc.w;
         ndc.xy = ndc.xy * 0.5f + 0.5f;
-        ndc.y = 1 - ndc.y;
         if (isOpenGl)
         {
             ndc.z = ndc.z * 0.5f + 0.5f;
+        }
+        else
+        {
+            ndc.y = 1 - ndc.y;
         }
         return ndc.xyz;
     }
@@ -128,8 +131,8 @@ struct HizCullJob : IJobParallelFor
         int2 index01 = l_bt.xz + l_bt.yw * textureWidth;
         int2 index23 = r_bt.xz + r_bt.yw * textureWidth;
 
-        float d0 = buffer[index01.x];
-        float d1 = buffer[index01.y];
+        float d0 = buffer[index01.x];//buffer[minPx.x + minPx.y * textureWidth];
+        float d1 = buffer[index01.y];//buffer[maxPx.x + maxPx.y * textureWidth];
         float d2 = buffer[index23.x];
         float d3 = buffer[index23.y];
 
@@ -137,20 +140,20 @@ struct HizCullJob : IJobParallelFor
         if (usesReversedZBuffer)
         {
             float minDepth = math.min(math.min(math.min(d0, d1),d2),d3);
-            Log($"5index:{index} {ndcMax.z} {minDepth} { Math.Round(ndcMax.z, 3)},{Math.Round(minDepth, 3)}");
+            Log($"5index:{index} {ndcMax.z} {minDepth} { Math.Round(ndcMax.z, 6)},{Math.Round(minDepth, 6)}");
             //精确到6位小数
             return Math.Round(ndcMax.z, 6) < Math.Round(minDepth, 6);
         }
         else
         {
             float maxDepth = math.max(math.max(math.max(d0, d1), d2), d3);
-            Log($"6index:{index} {ndcMin.z} {maxDepth}  {Math.Round(maxDepth, 3)},{Math.Round(ndcMin.z, 3)}");
+            Log($"6index:{index} {ndcMin.z} {maxDepth}  {Math.Round(maxDepth, 6)},{Math.Round(ndcMin.z, 6)}");
             return Math.Round(maxDepth, 6) > Math.Round(ndcMin.z, 6);
         }
     }
 
     private void Log(string str)
     {
-         Debug.LogError(str);
+         HizCulling.Log(str);
     }
 }

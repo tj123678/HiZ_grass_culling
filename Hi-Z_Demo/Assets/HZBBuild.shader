@@ -46,9 +46,9 @@ Shader "HZB/HZBBuild" {
                 depth.z = tex2D(mainTex, uv2);
                 depth.w = tex2D(mainTex, uv3);
 #if defined(UNITY_REVERSED_Z)
-                return min(min(depth.x, depth.y), min(depth.z, depth.w));
+                return min(min(depth.x, depth.y), min(depth.z, depth.w));//min(min(depth.x==0?1:depth.x, depth.y==0?1:depth.y), min(depth.z==0?1:depth.z, depth.w==0?1:depth.w));
 #else
-                return max(max(depth.x, depth.y), max(depth.z, depth.w));
+                return max(max(depth.x, depth.y), max(depth.z, depth));
 #endif
             }
 

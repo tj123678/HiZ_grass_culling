@@ -101,14 +101,14 @@ public class HzbInstance : MonoBehaviour {
 	}
 
 	// Update is called once per frame
-	public float mouseSensitivity = 10.0f;
+	public float mouseSensitivity = 1f;
 	void Update() {
 	
 
 		if (Input.GetMouseButton(0))
 		{
 			//摄像机转动
-			float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime*0.1f;
+			float mouseX = Input.GetAxis("Mouse X") * mouseSensitivity * Time.deltaTime;
 
 			// Camera.main.transform.Rotate(0, -mouseX, 0);
 		}

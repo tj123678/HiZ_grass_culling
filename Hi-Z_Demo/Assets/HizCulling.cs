@@ -155,23 +155,23 @@ public class HizCulling : MonoBehaviour
         // 确保RenderTexture是活动的
         RenderTexture.active = renderTexture;
         
-        // 创建一个Texture2D来存储RenderTexture的数据
-        Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
-        // 从RenderTexture复制像素数据到Texture2D
-        targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        targetTexture.Apply();
-        var pixels1 = targetTexture.GetPixels();
-        // 创建一个Color数组来存储像素数据
-        int logCount1 = 0;
-        for (int i = 0; i < pixels1.Length; i++)
-        {
-            buffer[i] = pixels1[i].r;
-            if (buffer[i] > 0 && buffer[i] < 1 && logCount1<10)
-            {
-                Debug.LogError($"depth1 unity:{i} {pixels1[i].r}");
-                logCount1++;
-            }
-        }
+        // // 创建一个Texture2D来存储RenderTexture的数据
+        // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
+        // // 从RenderTexture复制像素数据到Texture2D
+        // targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
+        // targetTexture.Apply();
+        // var pixels1 = targetTexture.GetPixels();
+        // // 创建一个Color数组来存储像素数据
+        // int logCount1 = 0;
+        // for (int i = 0; i < pixels1.Length; i++)
+        // {
+        //     buffer[i] = pixels1[i].r;
+        //     if (buffer[i] > 0 && buffer[i] < 1 && logCount1<10)
+        //     {
+        //         Debug.LogError($"depth1 unity:{i} {pixels1[i].r}");
+        //         logCount1++;
+        //     }
+        // }
 
 
         frameCount = Time.frameCount;
@@ -199,55 +199,6 @@ public class HizCulling : MonoBehaviour
         int textureWidth = MapSize;
         bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
         Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
-
-        var projectionMatrix = Camera.main.projectionMatrix;
-        for (int i = 0; i < 4; i++)
-        {
-            // 开始一行的字符串构建
-            string rowString = "[" + i + "] ";
-
-            // 遍历矩阵的列
-            for (int j = 0; j < 4; j++)
-            {
-                // 将矩阵元素格式化为字符串，并添加到行字符串
-                rowString += projectionMatrix[i, j].ToString("F3") + " ";
-            }
-
-            // 打印完成的行字符串
-            Debug.LogError($"Matrixlog projectionMatrix: {rowString}");
-        }
-        
-        for (int i = 0; i < 4; i++)
-        {
-            // 开始一行的字符串构建
-            string rowString = "[" + i + "] ";
-
-            // 遍历矩阵的列
-            for (int j = 0; j < 4; j++)
-            {
-                // 将矩阵元素格式化为字符串，并添加到行字符串
-                rowString += Camera.main.worldToCameraMatrix[i, j].ToString("F3") + " ";
-            }
-
-            // 打印完成的行字符串
-            Debug.LogError($"Matrixlog worldToCameraMatrix: {rowString}");
-        }
-        
-        for (int i = 0; i < 4; i++)
-        {
-            // 开始一行的字符串构建
-            string rowString = "[" + i + "] ";
-
-            // 遍历矩阵的列
-            for (int j = 0; j < 4; j++)
-            {
-                // 将矩阵元素格式化为字符串，并添加到行字符串
-                rowString += world2HZB[i, j].ToString("F3") + " ";
-            }
-
-            // 打印完成的行字符串
-            Debug.LogError($"Matrixlog world2HZB: {rowString}");
-        }
         
         Vector2Int mip0SizeVector = new Vector2Int(MapSize, MapSize);
         
@@ -276,5 +227,10 @@ public class HizCulling : MonoBehaviour
         buffer.Dispose();
         
         isRequest = false;
+    }
+
+    public static void Log(string str)
+    {
+        Debug.LogError(str);
     }
 }
