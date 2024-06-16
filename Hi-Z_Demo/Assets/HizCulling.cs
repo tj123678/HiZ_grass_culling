@@ -39,7 +39,7 @@ public class HizCulling : MonoBehaviour
             // GPUCull();
             if (isRequest) return;
             StartCoroutine(CPUCull());
-            isCulled = true;
+            // isCulled = true;
         }
     }
 
@@ -139,17 +139,19 @@ public class HizCulling : MonoBehaviour
     private IEnumerator CPUCull()
     {
         isRequest = true;
+        //当前mipmap的大小
+        int size = MapSize / (1 << 4);
+        Log("size:" + size);
         var (_, _, bounds) = aabb.GetAABBInfo();
         NativeArray<bool> result = new NativeArray<bool>(bounds.Length, Allocator.TempJob);
         NativeArray<Bounds> aabbs = new NativeArray<Bounds>(bounds.Length, Allocator.TempJob);
-        NativeArray<float> buffer = new NativeArray<float>(MapSize * MapSize, Allocator.TempJob);
+        NativeArray<float> buffer = new NativeArray<float>(size * size, Allocator.TempJob);
 
         for (int i = 0; i < bounds.Length; i++)
         {
             aabbs[i] = bounds[i];
         }
         
-        // 假设你已经有了一个RenderTexture实例
         RenderTexture renderTexture = HzbInstance.HZB_Depth;
 
         // 确保RenderTexture是活动的
@@ -175,32 +177,25 @@ public class HizCulling : MonoBehaviour
 
 
         frameCount = Time.frameCount;
-        var req = AsyncGPUReadback.Request(renderTexture, 0, renderTexture.graphicsFormat);
+       
+        var req = AsyncGPUReadback.Request(renderTexture, 4, renderTexture.graphicsFormat);
         
         yield return new WaitUntil(() => req.done);
-
-        // Debug.Log($"frame count:{Time.frameCount - frameCount}");
         
         float[] pixels = req.GetData<float>().ToArray();
         
-        // 创建一个Color数组来存储像素数据
-        int logCount = 0;
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i];
-            if (buffer[i] > 0 && buffer[i] < 1 && logCount<10)
-            {
-                Debug.LogError($"depth unity:{i} {buffer[i]}");
-                logCount++;
-            }
         }
+
+        // Debug.Log($"frame count:{Time.frameCount - frameCount}");
         
-        
-        int textureWidth = MapSize;
+        int textureWidth = size;
         bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
         Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         
-        Vector2Int mip0SizeVector = new Vector2Int(MapSize, MapSize);
+        Vector2Int mip0SizeVector = new Vector2Int(size, size);
         
         var job = new HizCullJob()
         {
@@ -231,6 +226,6 @@ public class HizCulling : MonoBehaviour
 
     public static void Log(string str)
     {
-        Debug.LogError(str);
+        // Debug.LogError(str);
     }
 }

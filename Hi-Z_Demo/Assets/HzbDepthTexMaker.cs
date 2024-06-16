@@ -97,19 +97,17 @@ public class HzbDepthTexMaker : MonoBehaviour
     {
         GenerateMinimap();
     }
-
-    private bool isLog = false;
+    
     private void GenerateMinimap()
     {
-        if(!isLog)Debug.LogError("GenerateMinimap start");
         if (stopMpde)
         {
 
             return;
         }
 
-        int w = hzbDepth.width * 2;
-        int h = hzbDepth.height * 2;
+        int w = hzbDepth.width;
+        int h = hzbDepth.height;
         int level = 0;
 
         RenderTexture lastRt = null;
@@ -138,18 +136,15 @@ public class HzbDepthTexMaker : MonoBehaviour
                 hzbMat.SetTexture(ID_DepthTexture, lastRt);
                 Graphics.Blit(null, tempRT, hzbMat);
                 RenderTexture.ReleaseTemporary(lastRt);
-                
-                Graphics.CopyTexture(tempRT, 0, 0, hzbDepth, 0, level);
-                level++;
             }
+            Graphics.CopyTexture(tempRT, 0, 0, hzbDepth, 0, level);
+            level++;
             lastRt = tempRT;
             w /= 2;
             h /= 2;
 
         }
         RenderTexture.ReleaseTemporary(lastRt);
-        if(!isLog)Debug.LogError("GenerateMinimap end");
-        isLog = true;
     }
 
 }
