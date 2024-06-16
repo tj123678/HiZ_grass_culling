@@ -148,7 +148,7 @@ struct HizCullJob : IJobParallelFor
         {
             float maxDepth = math.max(math.max(math.max(d0, d1), d2), d3);
             Log($"6index:{index} {ndcMin.z} {maxDepth}  {Math.Round(maxDepth, 6)},{Math.Round(ndcMin.z, 6)}");
-            return Math.Round(maxDepth, 6) > Math.Round(ndcMin.z, 6);
+            return Math.Round(ndcMin.z, 6) > Math.Round(maxDepth, 6);
         }
     }
 

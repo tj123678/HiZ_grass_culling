@@ -183,10 +183,16 @@ public class HizCulling : MonoBehaviour
         yield return new WaitUntil(() => req.done);
         
         float[] pixels = req.GetData<float>().ToArray();
-        
+
+        // int logCount = 0;
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i];
+            // if (buffer[i] > 0 && buffer[i] < 1 && logCount<10)
+            // {
+            //     Debug.LogError($"depth unity:{i} {buffer[i]}");
+            //     logCount++;
+            // }
         }
 
         // Debug.Log($"frame count:{Time.frameCount - frameCount}");
