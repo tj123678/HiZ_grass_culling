@@ -39,7 +39,7 @@ public class HizCulling : MonoBehaviour
             // GPUCull();
             if (isRequest) return;
             StartCoroutine(CPUCull());
-            // isCulled = true;
+            isCulled = true;
         }
     }
 
@@ -104,32 +104,15 @@ public class HizCulling : MonoBehaviour
     private int[] depthMpID;
     private void GPUCull()
     {
-        // if (depthMpID == null)
-        // {
-        //     depthMpID = new int[32];
-        //     for (int i = 0; i < depthMpID.Length; i++)
-        //     {
-        //         depthMpID[i] = Shader.PropertyToID("_DepthMip" + i);
-        //     }
-        // }
-        // var (center, zise, _) = aabb.GetAABBInfo();
-        // var hizTexture = HzbInstance.HZB_Depth;
-        // CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
-        // cmd.SetGlobalTexture("_InputDepth",new RenderTargetIdentifier("_CameraDepthTexture"));
-        // cmd.SetViewProjectionMatrices(Matrix4x4.identity, Matrix4x4.identity);
-        // //降采样Depth
-        // for (int i = 0; i < 8; i++)
-        // {
-        //     
-        // }
-
         CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
         var world2Project = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
-        cmd.SetGlobalTexture("_ObjectAABBTexture0",aabb._centerTexture);
-        cmd.SetGlobalTexture("_ObjectAABBTexture1",aabb._sizeTexture);
+        cmd.SetGlobalTexture("_centerTexture",aabb._centerTexture);
+        cmd.SetGlobalTexture("_sizeTexture",aabb._sizeTexture);
+        cmd.SetGlobalTexture("_DepthPyramidTex", HzbInstance.HZB_Depth);
         cmd.SetGlobalMatrix("_GPUCullingVP",world2Project);
+        cmd.SetGlobalVector("_MipmapLevelMinMaxIndex", new Vector2(0, 5));
         var screen = new Vector2(MapSize, MapSize);
-        cmd.SetGlobalVector("_Mip0Size", new Vector4(screen.x, screen.y));
+        cmd.SetGlobalVector("_Mip0Size", new Vector2(screen.x, screen.y));
         // cmd.SetRenderTarget();
 
     }
@@ -232,6 +215,6 @@ public class HizCulling : MonoBehaviour
 
     public static void Log(string str)
     {
-        // Debug.LogError(str);
+        Debug.LogError(str);
     }
 }

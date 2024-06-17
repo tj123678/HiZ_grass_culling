@@ -89,6 +89,6 @@ void CullingFrag(uint3 id : SV_DispatchThreadID)
         Result[globalIndex] = ndcMax.z < minDepth ? 1 : 0;
     #else
         float maxDepth = max(max(max(d0, d1), d2), d3);
-        _Result[globalIndex] = maxDepth > ndcMax.z ? 1 : 0;
+        _Result[globalIndex] = ndcMax.z > maxDepth  ? 1 : 0;
     #endif
 }

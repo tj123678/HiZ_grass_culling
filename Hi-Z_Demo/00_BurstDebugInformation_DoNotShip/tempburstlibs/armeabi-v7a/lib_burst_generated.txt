@@ -1,0 +1,29 @@
+Library: /Users/tangjian/Desktop/Work/HiZ_grass_culling/Hi-Z_Demo/Temp/BurstOutput/tempburstlibs/armeabi-v7a/lib_burst_generated
+--platform=Android
+--backend=burst-llvm-15
+--target=ARMV7A_NEON32
+--global-safety-checks-setting=Off
+--meta-data-generation=False
+--dump=Function
+--float-precision=Standard
+--target-framework=NetFramework
+--assembly-defines=Assembly-CSharp;
+--assembly-defines=Mono.Security;
+--assembly-defines=mscorlib;
+--assembly-defines=System.Configuration;
+--assembly-defines=System.Core;
+--assembly-defines=System;
+--assembly-defines=System.Xml;
+--assembly-defines=Unity.Burst;
+--assembly-defines=Unity.Mathematics;
+--assembly-defines=Unity.RenderPipelines.Core.Runtime;
+--assembly-defines=UnityEngine;
+--generate-link-xml=Temp/burst.link.xml
+--temp-folder=/Users/tangjian/Desktop/Work/HiZ_grass_culling/Hi-Z_Demo/Temp/Burst
+--key-folder=/Applications/Unity/Hub/Editor/2022.3.16f1/PlaybackEngines/AndroidPlayer
+--decode-folder=/Users/tangjian/Desktop/Work/HiZ_grass_culling/Hi-Z_Demo/Library/Burst
+--output=/Users/tangjian/Desktop/Work/HiZ_grass_culling/Hi-Z_Demo/Temp/BurstOutput/tempburstlibs/armeabi-v7a/lib_burst_generated
+--pdb-search-paths=Temp/ManagedSymbols/
+
+--method=Unity.Jobs.IJobParallelForExtensions+ParallelForJobStruct`1[[HizCullJob, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null]], UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null::Execute(HizCullJob&, Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|System.IntPtr, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089|Unity.Jobs.LowLevel.Unsafe.JobRanges&, UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null|System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089)--31218c2bef0299099b0e5e46081f3954
+

@@ -15,7 +15,7 @@ public class HzbDepthTexMaker : MonoBehaviour
     void Start()
     {
         hzbMat = new Material(hzbShader);
-        Camera.main.depthTextureMode |= DepthTextureMode.Depth;
+        // Camera.main.depthTextureMode |= DepthTextureMode.Depth;
 
         hzbDepth = new RenderTexture(HizCulling.MapSize, HizCulling.MapSize, 0, RenderTextureFormat.RFloat);
         hzbDepth.autoGenerateMips = false;
