@@ -2,28 +2,37 @@
 using System.Collections.Generic;
  using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 public class HzbDepthTexMaker : MonoBehaviour
 {
 
     public RenderTexture hzbDepth;
-     public Shader hzbShader;
+    public Shader hzbShader;
     private Material hzbMat;
+    public static HzbDepthTexMaker Instance;
+    private string m_DepthRTGeneratePassTag = "HiZDepthGeneratePass";
+    private Material m_genHiZRTMat;
  
     public bool stopMpde;
     // Use this for initialization
     void Start()
     {
+        Instance = this;
         hzbMat = new Material(hzbShader);
         // Camera.main.depthTextureMode |= DepthTextureMode.Depth;
 
         hzbDepth = new RenderTexture(HizCulling.MapSize, HizCulling.MapSize, 0, RenderTextureFormat.RFloat);
-        hzbDepth.autoGenerateMips = false;
-
+        
         hzbDepth.useMipMap = true;
+        hzbDepth.autoGenerateMips = false;
+        hzbDepth.enableRandomWrite = true;
+        hzbDepth.wrapMode = TextureWrapMode.Clamp;
         hzbDepth.filterMode = FilterMode.Point;
+        
         hzbDepth.Create();
         HzbInstance.HZB_Depth = hzbDepth;
+        m_genHiZRTMat = new Material(Shader.Find("Hidden/GenerateDepthRT"));
         // Test();
     }
 
@@ -87,19 +96,10 @@ public class HzbDepthTexMaker : MonoBehaviour
 
     int ID_DepthTexture;
     int ID_InvSize;
-
-    void Update()
-    {
-        // GenerateMinimap();
-    }
-
-    void OnPostRender()
-    {
-        GenerateMinimap();
-    }
     
-    private void GenerateMinimap()
+    public void ExecuteDepthGenerate(ScriptableRenderContext context,RenderPassEvent rpe,ref RenderingData renderingData)
     {
+        // renderingData.cameraData.renderer.cameraDepthTargetHandle.rt;
         if (stopMpde)
         {
 
@@ -119,17 +119,16 @@ public class HzbDepthTexMaker : MonoBehaviour
         RenderTexture tempRT;
         while (h > 8)
         {
-
-
             hzbMat.SetVector(ID_InvSize, new Vector4(1.0f / w, 1.0f / h, 0, 0));
-
             tempRT = RenderTexture.GetTemporary(w, h, 0, hzbDepth.format);
             tempRT.filterMode = FilterMode.Point;
             if (lastRt == null)
             {
-                //  hzbMat.SetTexture(ID_DepthTexture, Shader.GetGlobalTexture("_CameraDepthTexture"));
-                // var texture = Shader.GetGlobalTexture("_CameraDepthTexture");
-                Graphics.Blit(Shader.GetGlobalTexture("_CameraDepthTexture"), tempRT);
+                CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
+                // copy depth to hiz depth RT
+                cmd.Blit(Texture2D.blackTexture, tempRT, m_genHiZRTMat);
+                context.ExecuteCommandBuffer(cmd);
+                CommandBufferPool.Release(cmd);
             }
             else
             {

@@ -44,6 +44,7 @@ public class HzbInstance : MonoBehaviour {
 	}
 	// Use this for initialization
 	void Start () {
+		return;
 		//测试  16万棵草 computeshader 模式
 		int count = 400*400;
 	var terrain=	FindObjectOfType<Terrain>();
@@ -73,6 +74,7 @@ public class HzbInstance : MonoBehaviour {
  
 	}
 	void culling() {
+		return;
  		shader.SetFloat("useHzb", useHzb ? 1 : 0);
 		 args[1] = 0;
 		 	bufferWithArgs.SetData(args);

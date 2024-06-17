@@ -20,6 +20,7 @@ struct HizCullJob : IJobParallelFor
     // public NativeArray<Vector2Int> mipLevelSizes;
     
     public int textureWidth;
+    public int textureHeight;
     public bool isOpenGl;
     public bool usesReversedZBuffer;
     public float4x4 world2HZB;
@@ -118,7 +119,7 @@ struct HizCullJob : IJobParallelFor
         // int2 offset = math.int2(offsetData.x, offsetData.y);
 
 
-        var mipSizeData = new Vector2Int(textureWidth, textureWidth);//mipLevelSizes[mip];
+        var mipSizeData = new Vector2Int(textureWidth, textureHeight);//mipLevelSizes[mip];
         int2 mipSize = math.int2(mipSizeData.x, mipSizeData.y);
 
         int2 minPx = (int2)(ndcMin.xy * mipSize.xy);
