@@ -160,7 +160,7 @@ public class HizCulling : MonoBehaviour
 
 
         frameCount = Time.frameCount;
-       
+        Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         var req = AsyncGPUReadback.Request(renderTexture, 4, renderTexture.graphicsFormat);
         
         yield return new WaitUntil(() => req.done);
@@ -182,7 +182,6 @@ public class HizCulling : MonoBehaviour
         
         int textureWidth = size;
         bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
-        Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         
         Vector2Int mip0SizeVector = new Vector2Int(size, size);
         
