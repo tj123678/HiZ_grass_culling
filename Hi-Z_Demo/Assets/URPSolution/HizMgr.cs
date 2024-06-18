@@ -20,7 +20,7 @@ public class HizMgr : MonoBehaviour
     private int m_Clearkernel;
     private int m_Cullkernel;
 
-    private ComputeShader m_cullCS;
+    public ComputeShader m_cullCS;
 
     private Matrix4x4 m_lastVPs;
     private RenderTexture m_hizDepthRT;
@@ -285,7 +285,7 @@ public class HizMgr : MonoBehaviour
     private bool isOpenGl;
     private bool isCull;
     private bool isCulled;
-    public static int MapSize = 512;
+    public static int MapSize = 256;
     private RenderTexture renderTexture;
     public SpriteRenderer sprite;
     // public void ExecuteCull(ScriptableRenderContext context, RenderPassEvent passEvent, ref RenderingData renderingData)
@@ -429,23 +429,30 @@ public class HizMgr : MonoBehaviour
     
     public void ExecuteCull(ScriptableRenderContext context, RenderPassEvent passEvent, ref RenderingData renderingData)
     {
+        if (!isCull || isCulled) return;
+        isCulled = true;
         var mipIndex = 4;
         var width = m_hizDepthRT.width / (1 << mipIndex);
+        MapSize = width;
         CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
-        NativeArray<bool> result = new NativeArray<bool>(aabb._centerTexture.width * aabb._centerTexture.height, Allocator.TempJob);
+        uint[] result = new uint[aabb._centerTexture.width * aabb._centerTexture.height];
+        ComputeBuffer resultBuffer = new ComputeBuffer(result.Length, sizeof(uint));
+        // computeBuffer.SetData(result);
         var world2Project = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
         cmd.SetGlobalTexture("_centerTexture", aabb._centerTexture);
         cmd.SetGlobalTexture("_sizeTexture", aabb._sizeTexture);
-        cmd.SetGlobalTexture("_DepthPyramidTex", HzbInstance.HZB_Depth);
+        cmd.SetGlobalTexture("_DepthPyramidTex", m_hizDepthRT);
         cmd.SetGlobalMatrix("_GPUCullingVP", world2Project);
         cmd.SetGlobalVector("_MipmapLevelMinMaxIndex", new Vector2(0, 5));
         var screen = new Vector2(MapSize, MapSize);
         cmd.SetGlobalVector("_Mip0Size", new Vector2(screen.x, screen.y));
         cmd.SetGlobalFloat("_width", width);
-        // cmd.(m_cullCS, m_Cullkernel, "", result);//"_width", width);
+        cmd.SetComputeBufferParam(m_cullCS, m_Cullkernel, "_Result", resultBuffer);
         context.ExecuteCommandBuffer(cmd);
-        cmd.DispatchCompute(m_cullCS, m_Cullkernel, aabb._centerTexture.width / 8, aabb._centerTexture.height / 8, 1);
-        cmd.RequestAsyncReadback();
+        var totalCount = aabb._centerTexture.width * aabb._centerTexture.height;
+        cmd.DispatchCompute(m_cullCS, m_Cullkernel,  totalCount/ 8,  totalCount/ 8, 1);
+        resultBuffer.GetData(result);
+        aabb.UpdateRender(result);
         CommandBufferPool.Release(cmd);
     }
 

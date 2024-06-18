@@ -1,4 +1,5 @@
 ﻿using System;
+using UnityEditor.Scripting;
 using UnityEngine;
 
 namespace JobSystem
@@ -77,6 +78,7 @@ namespace JobSystem
         {
             for (int i = 0; i < _renderers.Length; i++)
             {
+                HizMgr.Log($"UpdateRender:{_renderers[i].gameObject.name} {isCulls[i]}");
                 _renderers[i].renderingLayerMask = isCulls[i] > 0 ? 1u : 0u;
             }
         }

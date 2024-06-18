@@ -82,7 +82,7 @@ void CullingFrag(uint3 id : SV_DispatchThreadID)
     float d1 = _DepthPyramidTex[pxMinMax.zy]; // rb
     float d2 = _DepthPyramidTex[pxMinMax.xw]; // lt
     float d3 = _DepthPyramidTex[pxMinMax.zw]; // rt
-
+    
     uint globalIndex = id.x + id.y * _width;
     #if UNITY_REVERSED_Z
         float minDepth = min(min(min(d0, d1), d2), d3);
