@@ -86,7 +86,7 @@ void CullingFrag(uint3 id : SV_DispatchThreadID)
     uint globalIndex = id.x + id.y * _width;
     #if UNITY_REVERSED_Z
         float minDepth = min(min(min(d0, d1), d2), d3);
-        Result[globalIndex] = ndcMax.z < minDepth ? 1 : 0;
+        _Result[globalIndex] = ndcMax.z < minDepth ? 1 : 0;
     #else
         float maxDepth = max(max(max(d0, d1), d2), d3);
         _Result[globalIndex] = ndcMax.z > maxDepth  ? 1 : 0;
