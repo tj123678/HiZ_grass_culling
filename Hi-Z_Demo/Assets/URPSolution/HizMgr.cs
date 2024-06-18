@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using Cysharp.Threading.Tasks;
 
 public class HizMgr : MonoBehaviour
 {
@@ -39,12 +40,14 @@ public class HizMgr : MonoBehaviour
 
     private ComputeShader m_generateMipmapCS;
     private int m_genMipmapKernel;
+    private int mipWidthSize;
 
     private void Start()
     {
         Instance = this;
         aabb = FindObjectOfType<AABBMgr>();
         isOpenGl = IsOpenGL();
+        Application.targetFrameRate = 30;
     }
 
     void OnGUI()
@@ -102,7 +105,7 @@ public class HizMgr : MonoBehaviour
         // if (m_DepthRTGeneratePassSampler == null)
         //     m_DepthRTGeneratePassSampler = new ProfilingSampler(m_DepthRTGeneratePassTag);
 
-        var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, true);
+        var proj = GL.GetGPUProjectionMatrix(renderingData.cameraData.camera.projectionMatrix, false);
         Matrix4x4 lastVp = proj * renderingData.cameraData.camera.worldToCameraMatrix;
 
         m_lastVPs = lastVp;
@@ -156,7 +159,7 @@ public class HizMgr : MonoBehaviour
             m_genMipmapKernel = m_generateMipmapCS.FindKernel("GenMip");
         }
 
-        UpdateHiZDepthRTWidth(renderingData.cameraData.camera.pixelWidth);
+        // UpdateHiZDepthRTWidth(renderingData.cameraData.camera.pixelWidth);
     }
 
     public void CreateHiZDepthRT(int screenWidth)
@@ -178,6 +181,8 @@ public class HizMgr : MonoBehaviour
             depthRT.Create();
             m_hizDepthRT = depthRT;
         }
+        
+        Debug.LogError("CreateHiZDepthRT:" + m_hizDepthRTWidth);
     }
 
     public void UpdateHiZDepthRTWidth(int screenWidth)
@@ -193,6 +198,8 @@ public class HizMgr : MonoBehaviour
             m_hizDepthRT = null;
             CreateHiZDepthRT(screenWidth);
         }
+
+        Debug.LogError("UpdateHiZDepthRTWidth:" + width);
     }
 
     private (int, int) GetDepthRTWidthFromScreen(int screenWidth)
@@ -221,25 +228,43 @@ public class HizMgr : MonoBehaviour
     private bool isCull;
     private bool isCulled;
     public static int MapSize = 512;
-
+    private RenderTexture renderTexture;
+    public SpriteRenderer sprite;
     public void ExecuteCull(ScriptableRenderContext context, RenderPassEvent passEvent, ref RenderingData renderingData)
     {
         if (isCull && !isCulled)
         {
             if (isRequest) return;
-            StartCoroutine(CPUCull());
-            // isCulled = true;
+            //当前mipmap的大小
+            var mipIndex = 5;
+            var width = m_hizDepthRT.width / (1 << mipIndex);
+            var height= m_hizDepthRT.height / (1 << mipIndex);
+            Debug.LogError($"size originWidth:{m_hizDepthRT.width} width:{width}  height:{height}  result:{width * height}");
+            CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
+            if (renderTexture == null)
+            {
+                renderTexture = new RenderTexture(m_hizDepthRT.width, m_hizDepthRT.height, 0, m_hizDepthRT.graphicsFormat); //m_hizDepthRT;
+                renderTexture.useMipMap = true;
+                renderTexture.autoGenerateMips = false;
+            }
+
+            // 复制Mipmap
+            for (int mipLevel = 0; mipLevel < m_hizDepthRT.descriptor.mipCount; mipLevel++)
+            {
+                cmd.CopyTexture(m_hizDepthRT, 0, mipLevel, renderTexture, 0, mipLevel);
+            }
+            Debug.LogError("m_hizDepthRT size:" + m_hizDepthRT.width + " " + renderTexture.width);
+            // 确保RenderTexture是活动的
+            RenderTexture.active = renderTexture;
+            context.ExecuteCommandBuffer(cmd);
+            CommandBufferPool.Release(cmd);
+            CPUCulling(context, renderTexture, mipIndex, width, height).Forget();
+            isCulled = true;
         }
     }
-
-    private IEnumerator CPUCull()
+    private async UniTask CPUCulling(ScriptableRenderContext context,RenderTexture renderTexture,int mipIndex,int width,int height)
     {
         isRequest = true;
-        //当前mipmap的大小
-        var mipIndex = 5;
-        var width = m_hizDepthRT.width / (1 << mipIndex);
-        var height= m_hizDepthRT.height / (1 << mipIndex);
-        Log($"size width:{width}  height:{height}  result:{width * height}");
         var (_, _, bounds) = aabb.GetAABBInfo();
         NativeArray<bool> result = new NativeArray<bool>(bounds.Length, Allocator.TempJob);
         NativeArray<Bounds> aabbs = new NativeArray<Bounds>(bounds.Length, Allocator.TempJob);
@@ -248,36 +273,28 @@ public class HizMgr : MonoBehaviour
         for (int i = 0; i < bounds.Length; i++)
         {
             aabbs[i] = bounds[i];
+
         }
-
-        RenderTexture renderTexture = m_hizDepthRT;
-
-        // 确保RenderTexture是活动的
-        RenderTexture.active = renderTexture;
-
+        
         // // 创建一个Texture2D来存储RenderTexture的数据
         // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RG32, false);
         // // 从RenderTexture复制像素数据到Texture2D
         // targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
         // targetTexture.Apply();
-        // var pixels1 = targetTexture.GetPixels();
-        // // 创建一个Color数组来存储像素数据
-        // int logCount1 = 0;
-        // for (int i = 0; i < pixels1.Length; i++)
+        // var pix = sprite.sprite.texture.GetPixels();
+        // var targetPix = targetTexture.GetPixels();
+        // for (int i = 0; i < targetPix.Length; i++)
         // {
-        //     buffer[i] = pixels1[i].r;
-        //     if (buffer[i] > 0 && buffer[i] < 1 && logCount1<10)
-        //     {
-        //         Debug.LogError($"depth1 unity:{i} {pixels1[i].r}");
-        //         logCount1++;
-        //     }
+        //     pix[i] = targetPix[i / 4];
         // }
+        // sprite.sprite.texture.SetPixels(targetTexture.GetPixels());
+        // sprite.sprite.texture.Apply();
 
         // frameCount = Time.frameCount;
         Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         var req = AsyncGPUReadback.Request(renderTexture, mipIndex, renderTexture.graphicsFormat);
 
-        yield return new WaitUntil(() => req.done);
+        await UniTask.WaitUntil(() => req.done);
 
         if (req.hasError)
         {
@@ -285,14 +302,14 @@ public class HizMgr : MonoBehaviour
         }
 
         float[] pixels = req.GetData<float>().ToArray();
-        Log("pixels size:" + pixels.Length);
+        Debug.LogError("pixels size:" + pixels.Length);
         int logCount = 0;
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i];
             if (buffer[i] > 0 && buffer[i] < 1 && logCount < 10)
             {
-                Debug.LogError($"depth unity:{i} {buffer[i]}");
+                Log($"depth unity:{i} {buffer[i]}");
                 logCount++;
             }
         }
@@ -349,6 +366,6 @@ public class HizMgr : MonoBehaviour
 
     public static void Log(string str)
     {
-        // Debug.LogError(str);
+        Debug.LogError(str);
     }
 }

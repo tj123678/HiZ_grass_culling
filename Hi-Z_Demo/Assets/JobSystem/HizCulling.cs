@@ -146,6 +146,7 @@ public class HizCulling : MonoBehaviour
         // 确保RenderTexture是活动的
         RenderTexture.active = renderTexture;
 
+        
         // // 创建一个Texture2D来存储RenderTexture的数据
         // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RG32, false);
         // // 从RenderTexture复制像素数据到Texture2D
@@ -224,6 +225,6 @@ public class HizCulling : MonoBehaviour
 
     public static void Log(string str)
     {
-        Debug.LogError(str);
+        HizMgr.Log(str);
     }
 }
