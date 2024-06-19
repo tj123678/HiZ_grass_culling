@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEditor.Scripting;
 using UnityEngine;
 
 namespace JobSystem
@@ -88,7 +87,7 @@ namespace JobSystem
             for (int i = 0; i < _renderers.Length; i++)
             {
                 _renderers[i].gameObject.SetActive(!isCulls[i]);
-                // _renderers[i].renderingLayerMask = renderStates[i] ? 1u : 0u;
+                // _renderers[i].renderingLayerMask = isCulls[i] ? 1u : 0u;
             }
         }
 
