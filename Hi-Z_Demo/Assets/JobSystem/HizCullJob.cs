@@ -112,7 +112,7 @@ struct HizCullJob : IJobParallelFor
 
         float raidus = math.max(ndcSize.x, ndcSize.y);
         int mip = (int)math.ceil(math.log2(raidus));
-        Log($"mip:{mip}");
+        Log($"mip:{mip}  raidus:{raidus}");
         mip = math.clamp(mip, 4, mipMaxIndex);
       
         // var offsetData = mipLevelOffsets[mip];
