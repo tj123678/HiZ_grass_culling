@@ -107,13 +107,13 @@ struct HizCullJob : IJobParallelFor
             //||  math.any(ndcZ < 0f)   || math.any(ndcZ > 1f)
             )
             return false;
-        float2 mipOSize = math.float2(mip0SizeVector.x, mip0SizeVector.y);
-        float2 ndcSize = math.floor((ndcMax.xy - ndcMin.xy) * mipOSize);
+        // float2 mipOSize = math.float2(mip0SizeVector.x, mip0SizeVector.y);
+        // float2 ndcSize = math.floor((ndcMax.xy - ndcMin.xy) * mipOSize);
 
-        float raidus = math.max(ndcSize.x, ndcSize.y);
-        int mip = (int)math.ceil(math.log2(raidus));
-        Log($"mip:{mip}  raidus:{raidus}");
-        mip = math.clamp(mip, 4, mipMaxIndex);
+        // float raidus = math.max(ndcSize.x, ndcSize.y);
+        // int mip = (int)math.ceil(math.log2(raidus));
+        // Log($"mip:{mip}  raidus:{raidus}");
+        // mip = math.clamp(mip, 4, mipMaxIndex);
       
         // var offsetData = mipLevelOffsets[mip];
         // int2 offset = math.int2(offsetData.x, offsetData.y);
@@ -137,7 +137,7 @@ struct HizCullJob : IJobParallelFor
         float d2 = buffer[index23.x];
         float d3 = buffer[index23.y];
 
-        Log($"3index:{index} {index01} {index23} {index} {d0} {d1} {d2} {d3}  {ndcMax.z}");
+        Log($"3index:{index} {l_bt} {r_bt} {index01} {index23} {index} {d0} {d1} {d2} {d3}  {ndcMax.z}");
         if (usesReversedZBuffer)
         {
             float minDepth = math.min(math.min(math.min(d0, d1),d2),d3);

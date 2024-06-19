@@ -119,7 +119,7 @@ namespace JobSystem
             distance *= -1;
             var openGlDepth = ((Camera.main.nearClipPlane + distance) * Camera.main.farClipPlane) / ((Camera.main.farClipPlane - Camera.main.nearClipPlane) * distance);
 
-            Debug.LogError($"screent index:{index} posMax:{posMaxString}  posMin:{posMinString} DX_depth:{dxDepth} openGl_depth:{openGlDepth} ");
+            // Debug.LogError($"screent index:{index} posMax:{posMaxString}  posMin:{posMinString} DX_depth:{dxDepth} openGl_depth:{openGlDepth} ");
         }
 
         public void UpdateInfo() {
