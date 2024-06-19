@@ -7,8 +7,9 @@ public class HzbDepthTexMaker : MonoBehaviour
 {
 
     public RenderTexture hzbDepth;
-     public Shader hzbShader;
+    public Shader hzbShader;
     private Material hzbMat;
+    private Material m_genHiZRTMat;
  
     public bool stopMpde;
     // Use this for initialization
@@ -24,6 +25,7 @@ public class HzbDepthTexMaker : MonoBehaviour
         hzbDepth.filterMode = FilterMode.Point;
         hzbDepth.Create();
         HzbInstance.HZB_Depth = hzbDepth;
+        m_genHiZRTMat = new Material(Shader.Find("Hidden/GenerateDepthRT"));
         // Test();
     }
 
@@ -92,8 +94,18 @@ public class HzbDepthTexMaker : MonoBehaviour
     {
         // GenerateMinimap();
     }
+    
+    private void OnEnable()
+    {
+        RenderPipelineManager.endCameraRendering += OnEndCameraRendering;
+    }
 
-    void OnPostRender()
+    private void OnDisable()
+    {
+        RenderPipelineManager.endCameraRendering -= OnEndCameraRendering;
+    }
+    
+    private void OnEndCameraRendering(ScriptableRenderContext arg1, Camera arg2)
     {
         GenerateMinimap();
     }
@@ -130,6 +142,7 @@ public class HzbDepthTexMaker : MonoBehaviour
                 //  hzbMat.SetTexture(ID_DepthTexture, Shader.GetGlobalTexture("_CameraDepthTexture"));
                 // var texture = Shader.GetGlobalTexture("_CameraDepthTexture");
                 Graphics.Blit(Shader.GetGlobalTexture("_CameraDepthTexture"), tempRT);
+                // Graphics.Blit(Texture2D.blackTexture, hzbDepth, m_genHiZRTMat);
             }
             else
             {

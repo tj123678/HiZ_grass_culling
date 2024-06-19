@@ -7,6 +7,7 @@ using UnityEditor.Rendering;
 using UnityEngine;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
+using UnityEngine.UI;
 
 public class HizCulling : MonoBehaviour
 {
@@ -18,6 +19,9 @@ public class HizCulling : MonoBehaviour
     public static int MapSize = 256;
     private bool isOpenGl;
 
+    public Button HizCullBtn;
+    public Button ShowAllBtn;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -27,12 +31,31 @@ public class HizCulling : MonoBehaviour
         kernelId = cullShader.FindKernel("CullingFrag");
         isOpenGl = IsOpenGL();
         Debug.Log($"cell:{1.0 / MapSize}  {isOpenGl}");
+        
+        HizCullBtn.onClick.AddListener(OnCullBtnClick);
+        ShowAllBtn.onClick.AddListener(OnShowAll);
+        UpdateCUllBtn();
     }
 
     // Update is called once per frame
 
     private bool isCulled = false;
     void Update()
+    {
+     
+    }
+    
+    private void OnEnable()
+    {
+        RenderPipelineManager.beginFrameRendering += BeginFrameRendering;
+    }
+
+    private void OnDisable()
+    {
+        RenderPipelineManager.beginFrameRendering -= BeginFrameRendering;
+    }
+
+    private void BeginFrameRendering(ScriptableRenderContext context, Camera[] cameras)
     {
         if (isCull && !isCulled)
         {
@@ -42,6 +65,8 @@ public class HizCulling : MonoBehaviour
             isCulled = true;
         }
     }
+    
+    
 
     void OnGUI()
     {
@@ -89,6 +114,26 @@ public class HizCulling : MonoBehaviour
         GUI.Label(rect, fpsText, style);
     }
 
+    private void OnCullBtnClick()
+    {
+        aabb.UpdateInfo();
+        isCull = !isCull;
+        isCulled = false;
+        UpdateCUllBtn();
+    }
+
+    private void UpdateCUllBtn()
+    {
+        var text = HizCullBtn.transform.GetComponentInChildren<Text>();
+        text.text = "是否剔除：" + (isCull ? "on" : "off");
+    }
+
+    private void OnShowAll()
+    {
+        isCull = false;
+        aabb.ShowAll();
+    }
+
     private bool IsOpenGL()
     {
         switch (SystemInfo.graphicsDeviceType)
@@ -119,11 +164,13 @@ public class HizCulling : MonoBehaviour
 
     private bool isRequest;
     private int frameCount = 0;
+    public SpriteRenderer spriteRenderer;
     private IEnumerator CPUCull()
     {
         isRequest = true;
         //当前mipmap的大小
-        int size = MapSize / (1 << 4);
+        int mipIndex = 3;
+        int size = MapSize / (1 << mipIndex);
         Log("size:" + size);
         var (_, _, bounds) = aabb.GetAABBInfo();
         NativeArray<bool> result = new NativeArray<bool>(bounds.Length, Allocator.TempJob);
@@ -140,25 +187,17 @@ public class HizCulling : MonoBehaviour
         // 确保RenderTexture是活动的
         RenderTexture.active = renderTexture;
         
-        // // 创建一个Texture2D来存储RenderTexture的数据
-        // Texture2D targetTexture = new Texture2D(renderTexture.width, renderTexture.height, TextureFormat.RGBA32, false);
-        // // 从RenderTexture复制像素数据到Texture2D
-        // targetTexture.ReadPixels(new Rect(0, 0, renderTexture.width, renderTexture.height), 0, 0);
-        // targetTexture.Apply();
-        // var pixels1 = targetTexture.GetPixels();
-        // // 创建一个Color数组来存储像素数据
-        // int logCount1 = 0;
-        // for (int i = 0; i < pixels1.Length; i++)
-        // {
-        //     buffer[i] = pixels1[i].r;
-        //     if (buffer[i] > 0 && buffer[i] < 1 && logCount1<10)
-        //     {
-        //         Debug.LogError($"depth1 unity:{i} {pixels1[i].r}");
-        //         logCount1++;
-        //     }
-        // }
-
-
+        //测试代码
+        var mipMapRenderTexture = RenderTexture.GetTemporary(size, size, 0, renderTexture.graphicsFormat);
+        Graphics.CopyTexture(renderTexture, 0, mipIndex, mipMapRenderTexture, 0, 0);
+        Texture2D targetTexture = new Texture2D(mipMapRenderTexture.width, mipMapRenderTexture.height, TextureFormat.RFloat, false);
+        // 从RenderTexture复制像素数据到Texture2D
+        RenderTexture.active = mipMapRenderTexture;
+        targetTexture.ReadPixels(new Rect(0, 0, mipMapRenderTexture.width, mipMapRenderTexture.height), 0, 0);
+        targetTexture.Apply();
+        spriteRenderer.sprite.texture.SetPixels(targetTexture.GetPixels());
+        
+        RenderTexture.active = renderTexture;
         frameCount = Time.frameCount;
         Matrix4x4 world2HZB = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
         var req = AsyncGPUReadback.Request(renderTexture, 4, renderTexture.graphicsFormat);
@@ -167,15 +206,15 @@ public class HizCulling : MonoBehaviour
         
         float[] pixels = req.GetData<float>().ToArray();
 
-        // int logCount = 0;
+        int logCount = 0;
         for (int i = 0; i < pixels.Length; i++)
         {
             buffer[i] = pixels[i];
-            // if (buffer[i] > 0 && buffer[i] < 1 && logCount<10)
-            // {
-            //     Debug.LogError($"depth unity:{i} {buffer[i]}");
-            //     logCount++;
-            // }
+            if (buffer[i] > 0 && buffer[i] < 1 && logCount<10)
+            {
+                Debug.LogError($"depth unity:{i} {buffer[i]}");
+                logCount++;
+            }
         }
 
         // Debug.Log($"frame count:{Time.frameCount - frameCount}");
@@ -214,6 +253,6 @@ public class HizCulling : MonoBehaviour
 
     public static void Log(string str)
     {
-        Debug.LogError(str);
+        Debug.Log(str);
     }
 }
