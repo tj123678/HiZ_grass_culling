@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using Cysharp.Threading.Tasks;
+using UnityEngine.Experimental.Rendering;
 
 public class HizMgr : MonoBehaviour
 {
@@ -22,6 +23,7 @@ public class HizMgr : MonoBehaviour
     private int m_Cullkernel;
 
     public ComputeShader m_cullCS;
+    public Shader hzbShader;
 
     private Matrix4x4 m_lastVPs;
     private Matrix4x4 m_Vps;
@@ -44,22 +46,16 @@ public class HizMgr : MonoBehaviour
     private ComputeShader m_generateMipmapCS;
     private int m_genMipmapKernel;
     private int mipWidthSize;
+    private Material hzbMat;
 
     private void Start()
     {
         Instance = this;
         aabb = FindObjectOfType<AABBMgr>();
         isOpenGl = IsOpenGL();
-        Application.targetFrameRate = 30;
-        
-        // m_hizDepthRT = new RenderTexture(HizCulling.MapSize, HizCulling.MapSize, 0, RenderTextureFormat.RFloat);
-        // m_hizDepthRT.useMipMap = true;
-        // m_hizDepthRT.autoGenerateMips = false;
-        // m_hizDepthRT.enableRandomWrite = true;
-        // m_hizDepthRT.wrapMode = TextureWrapMode.Clamp;
-        // m_hizDepthRT.filterMode = FilterMode.Point;
-        // m_hizDepthRT.Create();
         m_genHiZRTMat = new Material(Shader.Find("Hidden/GenerateDepthRT"));
+        m_generateMipmapCS = Resources.Load<ComputeShader>("GenerateMipmap");
+        m_genMipmapKernel = m_generateMipmapCS.FindKernel("GenMip");
         hzbMat = new Material(hzbShader);
     }
     public float mouseSensitivity = 1f;
@@ -122,66 +118,13 @@ public class HizMgr : MonoBehaviour
     }
 
     #region 生成HizMinimap
-    public Shader hzbShader;
-    private Material hzbMat;
-    int ID_DepthTexture;
-    int ID_InvSize;
-
-    // public void ExecuteDepthGenerate(ScriptableRenderContext context,RenderPassEvent rpe,ref RenderingData renderingData)
-    // {
-    //     int w = m_hizDepthRT.width;
-    //     int h = m_hizDepthRT.height;
-    //     int level = 0;
-    //
-    //     RenderTexture lastRt = null;
-    //     if (ID_DepthTexture == 0)
-    //     {
-    //         ID_DepthTexture = Shader.PropertyToID("_DepthTexture");
-    //         ID_InvSize = Shader.PropertyToID("_InvSize");
-    //     }
-    //     RenderTexture tempRT;
-    //     while (h > 8)
-    //     {
-    //         hzbMat.SetVector(ID_InvSize, new Vector4(1.0f / w, 1.0f / h, 0, 0));
-    //         tempRT = RenderTexture.GetTemporary(w, h, 0, m_hizDepthRT.format);
-    //         tempRT.filterMode = FilterMode.Point;
-    //         if (lastRt == null)
-    //         {
-    //             // copy depth to hiz depth RT
-    //             Graphics.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle.rt, tempRT, m_genHiZRTMat);
-    //         }
-    //         else
-    //         {
-    //             hzbMat.SetTexture(ID_DepthTexture, lastRt);
-    //             Graphics.Blit(null, tempRT, hzbMat);
-    //             RenderTexture.ReleaseTemporary(lastRt);
-    //         }
-    //         Graphics.CopyTexture(tempRT, 0, 0, m_hizDepthRT, 0, level);
-    //         level++;
-    //         lastRt = tempRT;
-    //         w /= 2;
-    //         h /= 2;
-    //
-    //     }
-    //     RenderTexture.ReleaseTemporary(lastRt);
-    // }
-    //
-
     public void ExecuteDepthGenerate(ScriptableRenderContext context, RenderPassEvent passEvent, ref RenderingData renderingData)
     {
-        // if (isRequest) return;
         EnsureResourceReady(renderingData);
-    
-        // if (m_DepthRTGeneratePassSampler == null)
-        //     m_DepthRTGeneratePassSampler = new ProfilingSampler(m_DepthRTGeneratePassTag);
-    
         m_Vps = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, true) * Camera.main.worldToCameraMatrix;
     
         CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
-        // using (new ProfilingScope(cmd, m_DepthRTGeneratePassSampler))
-        // {
-            // copy depth to hiz depth RT
-            // cmd.Blit(Texture2D.blackTexture, m_hizDepthRT, m_genHiZRTMat);
+       
             cmd.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle, m_hizDepthRT);
     
             float w = m_hizDepthRTWidth;
@@ -200,34 +143,15 @@ public class HizMgr : MonoBehaviour
                 cmd.DispatchCompute(m_generateMipmapCS, 0, x, y, 1);
                 
             }
-        // }
-    
+      
         context.ExecuteCommandBuffer(cmd);
         CommandBufferPool.Release(cmd);
     }
 
     private void EnsureResourceReady(RenderingData renderingData)
     {
-        // if (!m_cullCS)
-        // {
-        //     m_cullCS = AssetDatabase.LoadAssetAtPath<ComputeShader>("Assets/Scripts/HiZ/Res/GpuFrustumCulling.compute");
-        //     m_Clearkernel = m_cullCS.FindKernel("Clear");
-        //     m_Cullkernel = m_cullCS.FindKernel("Cull");
-        // }
-
         if (m_hizDepthRT == null)
             CreateHiZDepthRT(renderingData.cameraData.camera.pixelWidth);
-
-        if (m_genHiZRTMat == null)
-            m_genHiZRTMat = new Material(Shader.Find("Hidden/GenerateDepthRT"));
-
-        if (m_generateMipmapCS == null)
-        {
-            m_generateMipmapCS = Resources.Load<ComputeShader>("GenerateMipmap");
-            m_genMipmapKernel = m_generateMipmapCS.FindKernel("GenMip");
-        }
-
-        // UpdateHiZDepthRTWidth(renderingData.cameraData.camera.pixelWidth);
     }
 
     public void CreateHiZDepthRT(int screenWidth)
@@ -323,25 +247,6 @@ public class HizMgr : MonoBehaviour
             var width = m_hizDepthRT.width / (1 << mipIndex);
             var height= m_hizDepthRT.height / (1 << mipIndex);
             Log($"size mipCount:{m_hizDepthRT.mipmapCount} originWidth:{m_hizDepthRT.width} width:{width}  height:{height}  result:{width * height}");
-            // CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
-            // if (renderTexture == null)
-            // {
-            //     renderTexture = new RenderTexture(m_hizDepthRT.width, m_hizDepthRT.height, 0, m_hizDepthRT.graphicsFormat); //m_hizDepthRT;
-            //     renderTexture.useMipMap = true;
-            //     renderTexture.autoGenerateMips = false;
-            // }
-            //
-            // // 复制Mipmap
-            // for (int mipLevel = 0; mipLevel < m_hizDepthRT.descriptor.mipCount; mipLevel++)
-            // {
-            //     cmd.CopyTexture(m_hizDepthRT, 0, mipLevel, renderTexture, 0, mipLevel);
-            // }
-            // Debug.LogError("m_hizDepthRT size:" + m_hizDepthRT.width + " " + renderTexture.width);
-            // // 确保RenderTexture是活动的
-            // RenderTexture.active = renderTexture;
-            // context.ExecuteCommandBuffer(cmd);
-            // CommandBufferPool.Release(cmd);
-
             CPUCulling(context, mipIndex, width, height);
             // isCulled = true;
         }
@@ -375,23 +280,28 @@ public class HizMgr : MonoBehaviour
             if (request.done && !request.hasError)
             {
                 float[] pixels = request.GetData<float>().ToArray();
-                var spriteWith = sprite.sprite.texture.width;
                 Color[] colors = new Color[pixels.Length];
-                if (spriteWith * spriteWith == pixels.Length)
+                for (int i = 0; i < pixels.Length; i++)
                 {
-                    for (int i = 0; i < pixels.Length; i++)
-                    {
-                        colors[i] = new Color(pixels[i], 0, 0, 1);
-                    }
-                    sprite.sprite.texture.SetPixels(colors);
-                    sprite.sprite.texture.Apply();
+                    colors[i] = new Color(pixels[i], 0, 0, 1);
+                }
+
+                var spWidth = sprite.sprite.texture.width;
+                if (pixels.Length != spWidth * spWidth)
+                {
+                    RenderTexture depthRender = RenderTexture.GetTemporary(width, height);
+                    Texture2D texture2D = new Texture2D(width, height, TextureFormat.RFloat, false);
+                    texture2D.SetPixels(colors);
+                    Graphics.Blit(texture2D, depthRender);
+                    RenderTexture.active = depthRender;
+                    sprite.sprite.texture.ReadPixels(new Rect(0, 0, depthRender.width, depthRender.height), 0, 0);Destroy(texture2D);
+                    RenderTexture.ReleaseTemporary(depthRender);
                 }
                 else
                 {
-                    Debug.LogError($"sprite size error sp:{spriteWith * spriteWith} render:{pixels.Length}  ({width},{height}) miplevel:{mipIndex}");
+                    sprite.sprite.texture.SetPixels(colors);
+                    sprite.sprite.texture.Apply();
                 }
-                
-                
                 Log("pixels size:" + pixels.Length);
                 int logCount = 0;
                 // var list = ListPool<int>.Get();
@@ -410,15 +320,6 @@ public class HizMgr : MonoBehaviour
                 {
                     Log("Null");
                 }
-                // list.Sort();
-                // var sb = new StringBuilder();
-                // list.ForEach(id => sb.Append(id + ","));
-                // Log("depth total:" + sb);
-                // sb.Clear();
-                // ListPool<int>.Release(list);
-
-                // Log("center depth:"+buffer[32768]);
-                // Debug.Log($"frame count:{Time.frameCount - frameCount}");
         
                 bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
 
@@ -469,40 +370,8 @@ public class HizMgr : MonoBehaviour
 
         return false;
     }
-
     #endregion
     
-    
-    // public void ExecuteCull(ScriptableRenderContext context, RenderPassEvent passEvent, ref RenderingData renderingData)
-    // {
-    //     if (!isCull || isCulled) return;
-    //     isCulled = true;
-    //     var mipIndex = 4;
-    //     var width = m_hizDepthRT.width / (1 << mipIndex);
-    //     MapSize = width;
-    //     CommandBuffer cmd = CommandBufferPool.Get("DepthPyramid");
-    //     uint[] result = new uint[aabb._centerTexture.width * aabb._centerTexture.height];
-    //     ComputeBuffer resultBuffer = new ComputeBuffer(result.Length, sizeof(uint));
-    //     // computeBuffer.SetData(result);
-    //     var world2Project = GL.GetGPUProjectionMatrix(Camera.main.projectionMatrix, false) * Camera.main.worldToCameraMatrix;
-    //     cmd.SetGlobalTexture("_centerTexture", aabb._centerTexture);
-    //     cmd.SetGlobalTexture("_sizeTexture", aabb._sizeTexture);
-    //     cmd.SetGlobalTexture("_DepthPyramidTex", m_hizDepthRT);
-    //     cmd.SetGlobalMatrix("_GPUCullingVP", world2Project);
-    //     cmd.SetGlobalVector("_MipmapLevelMinMaxIndex", new Vector2(0, 5));
-    //     var screen = new Vector2(MapSize, MapSize);
-    //     cmd.SetGlobalVector("_Mip0Size", new Vector2(screen.x, screen.y));
-    //     cmd.SetGlobalFloat("_width", width);
-    //     cmd.SetComputeBufferParam(m_cullCS, m_Cullkernel, "_Result", resultBuffer);
-    //     context.ExecuteCommandBuffer(cmd);
-    //     var totalCount = aabb._centerTexture.width * aabb._centerTexture.height;
-    //     cmd.DispatchCompute(m_cullCS, m_Cullkernel,  totalCount/ 8,  totalCount/ 8, 1);
-    //     resultBuffer.GetData(result);
-    //     aabb.UpdateRender(result);
-    //     CommandBufferPool.Release(cmd);
-    // }
-    //
-
     public static void Log(string str)
     {
         // Debug.LogError(str);
