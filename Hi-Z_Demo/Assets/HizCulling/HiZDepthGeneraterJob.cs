@@ -21,6 +21,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         public int srcWidth; // 原始纹理的宽度
         public int srcHeight; // 原始纹理的高度
         public int startIndex;
+        public bool usesReversedZBuffer;
 
         public void Execute(int index)
         {
@@ -31,10 +32,9 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             // 确定原始纹理中2x2区域的起始坐标
             int srcStartX = dstX * 2;
             int srcStartY = dstY * 2;
-
-            // 初始化最小深度值为一个很大的数
-            float minDepth = float.MaxValue;
-
+            
+            float depth = usesReversedZBuffer ? float.MaxValue : float.MinValue;
+            
             // 遍历2x2区域，找到最小深度值
             for (int i = 0; i < 2; i++)
             {
@@ -44,15 +44,22 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                     // 确保索引在有效范围内
                     if (srcIndex < srcWidth * srcHeight)
                     {
-                        minDepth = Mathf.Min(minDepth, srcDepthData[srcIndex]);
+                        if (usesReversedZBuffer)
+                        {
+                            depth = Mathf.Min(depth, srcDepthData[srcIndex]);
+                        }
+                        else
+                        {
+                            depth = Mathf.Max(depth, srcDepthData[srcIndex]);
+                        }
                     }
                 }
             }
 
             // 将找到的最小深度值写入到降采样纹理的对应位置
             // Debug.LogError($"width:{srcWidth} index:{index} length:{destDepthData.Length}");
-            destDepthData[index] = minDepth;
-            allDepthData[startIndex + index] = minDepth;
+            destDepthData[index] = depth;
+            allDepthData[startIndex + index] = depth;
         }
     }
 }

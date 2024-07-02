@@ -44,7 +44,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             Instance = this;
             aabb = FindObjectOfType<AABBMgr>();
             isOpenGl = IsOpenGL();
-            m_genHiZRTMat = new Material(Shader.Find("Hidden/GenerateDepthRT"));
+            m_genHiZRTMat = new Material(Shader.Find("HZB/HZBBuild"));
             cullCamera = Camera.main;
             tempBounds = new List<Bounds>();
             tempOccludes = new List<GameObject>();
@@ -81,7 +81,11 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             m_Vps = GL.GetGPUProjectionMatrix(cullCamera.projectionMatrix, false) * cullCamera.worldToCameraMatrix;
             Log($"projectionMatrix:\n{cullCamera.projectionMatrix}  worldToCameraMatrixL:\n{cullCamera.worldToCameraMatrix}");
             CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
-            cmd.Blit(Texture2D.blackTexture, m_hizDepthRT, m_genHiZRTMat);
+
+            cmd.SetGlobalTexture("_DepthTexture", renderingData.cameraData.renderer.cameraDepthTargetHandle);
+            cmd.SetGlobalVector("_InvSize", new Vector4(1f / mipWidthSize, 1f / mipWidthSize,0,0));
+            cmd.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle, m_hizDepthRT,m_genHiZRTMat);
+
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
@@ -153,6 +157,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             }
         }
 
+        public SpriteRenderer srcSprite;
         private void CPUCulling(ScriptableRenderContext context, int mipIndex, int width, int height)
         {
             isRequest = true;
@@ -322,6 +327,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                 srcHeight = srcHeight,
                 startIndex = startIndex,
                 allDepthData = allDepthData,
+                usesReversedZBuffer = SystemInfo.usesReversedZBuffer
             };
 
             // 调度Job
