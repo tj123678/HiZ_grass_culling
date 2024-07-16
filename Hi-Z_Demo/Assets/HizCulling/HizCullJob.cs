@@ -167,8 +167,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         private void Log(string str)
         {
-            // HizMgr.Log(str);
-            // Debug.Log(str);
+            HizMgr.Log(str);
         }
     }
 }

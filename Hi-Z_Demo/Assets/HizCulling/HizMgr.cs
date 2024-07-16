@@ -12,9 +12,10 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
     public class HizMgr : MonoBehaviour
     {
         public static HizMgr Instance { get; private set; }
+        
+        [Tooltip("打开debug绘制")] public bool IsDrawDebug = false;
 
         private string m_DepthRTGeneratePassTag = "HiZDepthGeneratePass";
-        private ProfilingSampler m_DepthRTGeneratePassSampler;
 
         private int m_Clearkernel;
         private int m_Cullkernel;
@@ -32,6 +33,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         private Material m_genHiZRTMat;
         private int mipWidthSize;
+        public Camera CullCamera => cullCamera;
         private Camera cullCamera;
 
         private List<GameObject> tempOccludes;
@@ -42,12 +44,12 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         private void Start()
         {
             Instance = this;
-            aabb = FindObjectOfType<AABBMgr>();
             isOpenGl = IsOpenGL();
             m_genHiZRTMat = new Material(Shader.Find("HZB/HZBBuild"));
             cullCamera = Camera.main;
             tempBounds = new List<Bounds>();
             tempOccludes = new List<GameObject>();
+            aabb = gameObject.AddComponent<AABBMgr>();
         }
 
         void OnGUI()
@@ -61,15 +63,11 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             if (GUILayout.Button("是否剔除：" + (isCull ? "on" : "off"), GUILayout.ExpandWidth(true), GUILayout.Height(100)))
             {
                 isCull = !isCull;
+                if (!isCull)
+                {
+                    aabb.ShowAll();
+                }
             }
-
-            GUILayout.Space(150);
-            if (GUILayout.Button("显示所有", GUILayout.ExpandWidth(true), GUILayout.Height(100)))
-            {
-                isCull = false;
-                aabb.ShowAll();
-            }
-
             GUILayout.EndHorizontal(); // 结束水平布局
         }
 
@@ -83,8 +81,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             CommandBuffer cmd = CommandBufferPool.Get(m_DepthRTGeneratePassTag);
 
             cmd.SetGlobalTexture("_DepthTexture", renderingData.cameraData.renderer.cameraDepthTargetHandle);
-            cmd.SetGlobalVector("_InvSize", new Vector4(1f / mipWidthSize, 1f / mipWidthSize,0,0));
-            cmd.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle, m_hizDepthRT,m_genHiZRTMat);
+            cmd.SetGlobalVector("_InvSize", new Vector4(1f / mipWidthSize, 1f / mipWidthSize, 0, 0));
+            cmd.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle, m_hizDepthRT, m_genHiZRTMat);
 
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
@@ -157,7 +155,6 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             }
         }
 
-        public SpriteRenderer srcSprite;
         private void CPUCulling(ScriptableRenderContext context, int mipIndex, int width, int height)
         {
             isRequest = true;
@@ -173,7 +170,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             {
                 if (request.done && !request.hasError)
                 {
-                    Profiler.BeginSample("HizOcclu");
+                    Profiler.BeginSample("HizOcclude");
                     aabb.GetAABBInfos(tempOccludes, tempBounds);
                     NativeArray<Bounds> aabbs = new NativeArray<Bounds>(tempBounds.Count, Allocator.TempJob);
                     for (int i = 0; i < tempBounds.Count; i++)
@@ -184,7 +181,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                     NativeArray<bool> result = new NativeArray<bool>(tempBounds.Count, Allocator.TempJob);
                     var hizDepthData = new NativeArray<float>(GetHizSize(maxMipLevel, width / 2, height / 2), Allocator.TempJob);
                     HiZDepthGenerater(pixels, width, height, maxMipLevel, ref hizDepthData);
-                    
+
                     Log("hizDepthData size:" + hizDepthData.Length);
 
                     bool usesReversedZBuffe = SystemInfo.usesReversedZBuffer;
@@ -193,7 +190,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                     {
                         result = result,
                         aabbs = aabbs,
-                        
+
                         depth0buffer = pixels,
                         buffer = hizDepthData,
 
@@ -251,7 +248,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             for (int i = 1; i <= maxMipLevel; i++)
             {
                 var dstDepthData = new NativeArray<float>(tempWidth / 2 * tempHeight / 2, Allocator.TempJob);
-                HiZDepthGeneraterJob(destDatas[i-1], tempWidth, tempHeight, i, ref dstDepthData,ref hizDepthData);
+                HiZDepthGeneraterJob(destDatas[i - 1], tempWidth, tempHeight, i, ref dstDepthData, ref hizDepthData);
                 destDatas.Add(i, dstDepthData);
 
                 tempWidth /= 2;
@@ -262,6 +259,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             {
                 destDatas[i].Dispose();
             }
+
             DictionaryPool<int, NativeArray<float>>.Release(destDatas);
         }
 
@@ -287,8 +285,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
             return size;
         }
-        
-        private void HiZDepthCopyJob(NativeArray<float> srcDepthData,ref NativeArray<float> allDepthData)
+
+        private void HiZDepthCopyJob(NativeArray<float> srcDepthData, ref NativeArray<float> allDepthData)
         {
             var multi = (int)Mathf.Pow(2, 5);
             // 创建Job
@@ -306,7 +304,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             jobHandle.Complete();
         }
 
-        private void HiZDepthGeneraterJob(NativeArray<float> srcDepthData,int srcWidth, int srcHeight,int mapLevel, ref NativeArray<float> dstDepthData,ref NativeArray<float> allDepthData)
+        private void HiZDepthGeneraterJob(NativeArray<float> srcDepthData, int srcWidth, int srcHeight, int mapLevel, ref NativeArray<float> dstDepthData,
+            ref NativeArray<float> allDepthData)
         {
             var startIndex = 0;
             var (tempWidth, tempHeight) = (mipWidthSize / 2, mipWidthSize / 2);
@@ -316,7 +315,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                 tempWidth /= 2;
                 tempHeight /= 2;
             }
-            
+
             // Debug.LogError($"width:{srcWidth} star:{startIndex} mapLevel:{mapLevel} all:{allDepthData.Length} dst:{dstDepthData.Length}");
             // 创建Job
             var job = new HiZDepthGeneraterJob

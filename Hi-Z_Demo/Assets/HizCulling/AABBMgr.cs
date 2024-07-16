@@ -83,11 +83,13 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
             foreach (var occludee in _hizOccludees)
             {
-                objs.AddRange(occludee.Occludees);
-                bouns.AddRange(occludee.Bouns);
+                if (occludee.IsInCameraView())
+                {
+                    objs.AddRange(occludee.Occludees);
+                    bouns.AddRange(occludee.Bouns);
+                }
             }
         }
-
         #endregion
     }
 }
