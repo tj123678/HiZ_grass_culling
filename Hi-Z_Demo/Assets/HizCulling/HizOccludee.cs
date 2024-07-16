@@ -92,7 +92,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                 }
             }
 
-            isInCameraView = true;//false;
+            isInCameraView = false;
             return false;
         }
 
