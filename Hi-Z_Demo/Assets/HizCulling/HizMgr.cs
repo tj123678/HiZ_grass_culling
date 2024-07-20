@@ -36,19 +36,19 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         public Camera CullCamera => cullCamera;
         private Camera cullCamera;
 
-        private List<GameObject> tempOccludes;
+        private List<MeshRenderer> tempOccludes;
         private List<Bounds> tempBounds;
 
         private int maxMipLevel = 7;
 
-        private void Start()
+        private void Awake()
         {
             Instance = this;
             isOpenGl = IsOpenGL();
             m_genHiZRTMat = new Material(Shader.Find("HZB/HZBBuild"));
             cullCamera = Camera.main;
             tempBounds = new List<Bounds>();
-            tempOccludes = new List<GameObject>();
+            tempOccludes = new List<MeshRenderer>();
             aabb = gameObject.AddComponent<AABBMgr>();
         }
 
@@ -168,7 +168,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
             void OnReadBack(AsyncGPUReadbackRequest request)
             {
-                if (request.done && !request.hasError)
+                if (isCull && request.done && !request.hasError)
                 {
                     Profiler.BeginSample("HizOcclude");
                     aabb.GetAABBInfos(tempOccludes, tempBounds);

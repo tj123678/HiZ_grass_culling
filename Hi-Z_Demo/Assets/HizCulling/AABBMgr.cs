@@ -19,12 +19,11 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             cullCamera = Camera.main;
         }
 
-        public void UpdateRender(List<GameObject> occuldes, bool[] isCulls)
+        public void UpdateRender(List<MeshRenderer> occuldes, bool[] isCulls)
         {
             for (int i = 0; i < occuldes.Count; i++)
             {
-                occuldes[i].SetActive(!isCulls[i]);
-                // _renderers[i].renderingLayerMask = isCulls[i] ? 0u :1u;
+                occuldes[i].renderingLayerMask = isCulls[i] ? 0u :1u;
             }
         }
 
@@ -32,9 +31,9 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         {
             foreach (var occludee in _hizOccludees)
             {
-                foreach (var obj in occludee.Occludees)
+                foreach (var oc in occludee.Occludees)
                 {
-                    obj.gameObject.SetActive(true);
+                    oc.renderingLayerMask = 1u;
                 }
             }
         }
@@ -75,7 +74,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             _hizOccludees.Remove(occludee);
         }
 
-        public void GetAABBInfos(List<GameObject> objs, List<Bounds> bouns)
+        public void GetAABBInfos(List<MeshRenderer> objs, List<Bounds> bouns)
         {
             if (objs == null || bouns == null) return;
             objs.Clear();

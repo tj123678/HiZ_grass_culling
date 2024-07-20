@@ -10,7 +10,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
     public class HizOccludee : MonoBehaviour
     {
         public Bounds[] Bouns { get; private set; }
-        public GameObject[] Occludees { get; private set; }
+        public MeshRenderer[] Occludees { get; private set; }
 
         //用一个大的box包含所有的子物体
         private Vector3 size;
@@ -22,12 +22,12 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         {
             var meshs = GetComponentsInChildren<MeshRenderer>(false);
             Bouns = new Bounds[meshs.Length];
-            Occludees = new GameObject[meshs.Length];
+            Occludees = new MeshRenderer[meshs.Length];
 
             for (int i = 0; i < meshs.Length; i++)
             {
                 Bouns[i] = meshs[i].bounds;
-                Occludees[i] = meshs[i].gameObject;
+                Occludees[i] = meshs[i];
             }
             
             isInCameraView = false;
