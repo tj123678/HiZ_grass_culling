@@ -43,6 +43,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         private void Awake()
         {
+            Application.targetFrameRate = 30;
             Instance = this;
             isOpenGl = IsOpenGL();
             m_genHiZRTMat = new Material(Shader.Find("HZB/HZBBuild"));
@@ -129,7 +130,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         private (int, int) GetDepthRTWidthFromScreen(int screenWidth)
         {
-            return (256, 0);
+            return (512, 0);
         }
 
         #endregion
@@ -170,7 +171,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             {
                 if (isCull && request.done && !request.hasError)
                 {
-                    Profiler.BeginSample("HizOcclude");
+                    Profiler.BeginSample("hiz start");
                     aabb.GetAABBInfos(tempOccludes, tempBounds);
                     NativeArray<Bounds> aabbs = new NativeArray<Bounds>(tempBounds.Count, Allocator.TempJob);
                     for (int i = 0; i < tempBounds.Count; i++)
@@ -180,6 +181,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
                     NativeArray<bool> result = new NativeArray<bool>(tempBounds.Count, Allocator.TempJob);
                     var hizDepthData = new NativeArray<float>(GetHizSize(maxMipLevel, width / 2, height / 2), Allocator.TempJob);
+                    Profiler.EndSample();
+                    Profiler.BeginSample("hiz HiZDepthGenerater");
                     HiZDepthGenerater(pixels, width, height, maxMipLevel, ref hizDepthData);
 
                     Log("hizDepthData size:" + hizDepthData.Length);
@@ -204,18 +207,21 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                         mipMaxIndex = maxMipLevel,
                         srcLog2 = (int)Math.Log(width, 2)
                     };
+                    Profiler.EndSample();
+                    Profiler.BeginSample("hiz job");
                     // 调度作业
                     JobHandle handle = job.Schedule(result.Length, 64);
                     handle.Complete();
-
+                    Profiler.EndSample();
+                    Profiler.BeginSample("hiz UpdateRender");
                     aabb.UpdateRender(tempOccludes, result.ToArray());
+                    Profiler.EndSample();
 
                     //清理
                     result.Dispose();
                     aabbs.Dispose();
                     hizDepthData.Dispose();
                     pixels.Dispose();
-                    Profiler.EndSample();
                 }
 
                 isRequest = false;
