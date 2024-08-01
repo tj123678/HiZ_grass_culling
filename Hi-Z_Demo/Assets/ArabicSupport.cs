@@ -656,53 +656,7 @@ class ArabicFixerTool
 			{
 				if (numberList.Count > 0)
 				{
-					var numSb = new StringBuilder();
-					for (int j = 0; j < numberList.Count; j++)
-						numSb.Append(numberList[numberList.Count - 1 - j]);
-					var numStr = numSb.ToString();
-					var resultSb = new StringBuilder();
-					MatchCollection matches = ArabicSupport.Regex.Matches(numStr);
-
-					void AddNumStr(StringBuilder sb,char ch)
-					{
-						if (ch == '(')
-							sb.Append(')');
-						else if (ch == ')')
-							sb.Append('(');
-						else if (ch == '[')
-							sb.Append(']');
-						else if (ch == ']')
-							sb.Append('[');
-						else
-							sb.Append(ch);
-					}
-
-					if (matches.Count > 0)
-					{
-						for (int j = matches.Count - 1; j >= 0; j--)
-						{
-							var endIndex = numSb.Length - 1;
-							if (j < matches.Count - 1)
-							{
-								endIndex = matches[j + 1].Index - 1;
-							}
-							for (int k = endIndex; k >= matches[j].Index + matches[j].Length; k--)
-							{
-								AddNumStr(resultSb, numSb[k]);
-							}
-							resultSb.Append(matches[j].Value);
-						}
-
-						for (int j = matches[0].Index-1; j >= 0; j--)
-						{
-							AddNumStr(resultSb, numSb[j]);
-						}
-					}
-					
-					list.AddRange(resultSb.ToString());
-					resultSb.Clear();
-					numSb.Clear();
-					numberList.Clear();
+					EnqueueNumber(numberList, list);
 				}
 
 				if (lettersFinal[i] != 0xFFFF)
@@ -713,9 +667,7 @@ class ArabicFixerTool
 
 		if (numberList.Count > 0)
 		{
-			for (int j = 0; j < numberList.Count; j++)
-				list.Add(numberList[numberList.Count - 1 - j]);
-			numberList.Clear();
+			EnqueueNumber(numberList, list);
 		}
 
 		// Moving letters from a list to an array.
@@ -726,6 +678,59 @@ class ArabicFixerTool
 
 		str = new string(lettersFinal);
 		return str;
+	}
+
+	private static void EnqueueNumber(List<char> numberList, List<char> list)
+	{
+		var numSb = new StringBuilder();
+		for (int j = 0; j < numberList.Count; j++)
+			numSb.Append(numberList[numberList.Count - 1 - j]);
+		var numStr = numSb.ToString();
+		var resultSb = new StringBuilder();
+		MatchCollection matches = ArabicSupport.Regex.Matches(numStr);
+
+		void AddNumStr(StringBuilder sb, char ch)
+		{
+			if (ch == '(')
+				sb.Append(')');
+			else if (ch == ')')
+				sb.Append('(');
+			else if (ch == '[')
+				sb.Append(']');
+			else if (ch == ']')
+				sb.Append('[');
+			else
+				sb.Append(ch);
+		}
+
+		if (matches.Count > 0)
+		{
+			for (int j = matches.Count - 1; j >= 0; j--)
+			{
+				var endIndex = numSb.Length - 1;
+				if (j < matches.Count - 1)
+				{
+					endIndex = matches[j + 1].Index - 1;
+				}
+
+				for (int k = endIndex; k >= matches[j].Index + matches[j].Length; k--)
+				{
+					AddNumStr(resultSb, numSb[k]);
+				}
+
+				resultSb.Append(matches[j].Value);
+			}
+
+			for (int j = matches[0].Index - 1; j >= 0; j--)
+			{
+				AddNumStr(resultSb, numSb[j]);
+			}
+		}
+
+		list.AddRange(resultSb.ToString());
+		resultSb.Clear();
+		numSb.Clear();
+		numberList.Clear();
 	}
 
 	/// <summary>

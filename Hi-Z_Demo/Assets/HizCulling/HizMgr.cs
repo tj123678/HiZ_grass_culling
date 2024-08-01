@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
@@ -41,6 +42,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         private int maxMipLevel = 7;
 
+        public TMP_Text TMPText;
+
         private void Awake()
         {
             Application.targetFrameRate = 30;
@@ -51,6 +54,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             tempBounds = new List<Bounds>();
             tempOccludes = new List<MeshRenderer>();
             aabb = gameObject.AddComponent<AABBMgr>();
+
+            TMPText.text = ArabicSupport.Fix("<size=24><color=#A3A5A3>(إذا شعرت بالدوار، الرجاء إيقاف هذا الإعداد)</color></size>ضبط وضوح آلي");
         }
 
         void OnGUI()
