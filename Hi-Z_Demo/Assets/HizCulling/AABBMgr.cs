@@ -6,7 +6,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 {
     public class AABBMgr : MonoBehaviour
     {
-        private List<HizOccludee> _hizOccludees;
+        private Dictionary<GameObject,HizOccludee> _hizOccludees;
         public static AABBMgr Instance { get; private set; }
         private Bounds[] _bounds;
         private Camera cullCamera;
@@ -15,7 +15,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         void Awake()
         {
             Instance = this;
-            _hizOccludees = new List<HizOccludee>();
+            _hizOccludees = new Dictionary<GameObject, HizOccludee>();
             cullCamera = Camera.main;
         }
 
@@ -29,7 +29,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         public void ShowAll()
         {
-            foreach (var occludee in _hizOccludees)
+            foreach (var (_,occludee) in _hizOccludees)
             {
                 foreach (var oc in occludee.Occludees)
                 {
@@ -66,12 +66,12 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         public void Register(HizOccludee occludee)
         {
-            _hizOccludees.Add(occludee);
+            _hizOccludees.Add(occludee.gameObject, occludee);
         }
 
         public void UnRegister(HizOccludee occludee)
         {
-            _hizOccludees.Remove(occludee);
+            _hizOccludees.Remove(occludee.gameObject);
         }
 
         public void GetAABBInfos(List<MeshRenderer> objs, List<Bounds> bouns)
@@ -80,9 +80,9 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             objs.Clear();
             bouns.Clear();
 
-            foreach (var occludee in _hizOccludees)
+            foreach (var (_, occludee) in _hizOccludees)
             {
-                if (occludee.IsInCameraView())
+                if (true)//occludee.IsInCameraView())
                 {
                     objs.AddRange(occludee.Occludees);
                     bouns.AddRange(occludee.Bouns);

@@ -43,10 +43,11 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         private int maxMipLevel = 7;
 
         public TMP_Text TMPText;
+        private TreeMgr treeMgr;
 
         private void Awake()
         {
-            Application.targetFrameRate = 30;
+            Debug.Log("场景中所有物体数量：" + GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None).Length);
             Instance = this;
             isOpenGl = IsOpenGL();
             m_genHiZRTMat = new Material(Shader.Find("HZB/HZBBuild"));
@@ -54,8 +55,17 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             tempBounds = new List<Bounds>();
             tempOccludes = new List<MeshRenderer>();
             aabb = gameObject.AddComponent<AABBMgr>();
+            treeMgr = gameObject.AddComponent<TreeMgr>();
 
             TMPText.text = ArabicSupport.Fix("<size=24><color=#A3A5A3>(إذا شعرت بالدوار، الرجاء إيقاف هذا الإعداد)</color></size>ضبط وضوح آلي");
+        }
+
+        private int index = 0;
+        public void AddTreeNode(GameObject obj)
+        {
+            var pos = obj.transform.position;
+            Debug.Log("AddTreeNode:" + index++ + "  " + pos);
+            treeMgr.tree.Instance(new ObjData(obj, pos, obj.transform.eulerAngles));
         }
 
         void OnGUI()
@@ -88,6 +98,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
             cmd.SetGlobalTexture("_DepthTexture", renderingData.cameraData.renderer.cameraDepthTargetHandle);
             cmd.SetGlobalVector("_InvSize", new Vector4(1f / mipWidthSize, 1f / mipWidthSize, 0, 0));
+            // var depthDescriptor = renderingData.cameraData.cameraTargetDescriptor;
+            // depthDescriptor.bindMS = false;// depthDescriptor.msaaSamples > 1 && (SystemInfo.supportsMultisampledTextures != 0);
             cmd.Blit(renderingData.cameraData.renderer.cameraDepthTargetHandle, m_hizDepthRT, m_genHiZRTMat);
 
             context.ExecuteCommandBuffer(cmd);
@@ -128,6 +140,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                 // depthRT.enableRandomWrite = true;
                 depthRT.wrapMode = TextureWrapMode.Clamp;
                 depthRT.filterMode = FilterMode.Point;
+                depthRT.bindTextureMS = true;
+                depthRT.antiAliasing = 2;
                 depthRT.Create();
                 m_backupHizDepthRT = depthRT;
             }
