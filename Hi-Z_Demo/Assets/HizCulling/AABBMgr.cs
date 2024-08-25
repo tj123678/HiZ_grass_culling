@@ -64,6 +64,11 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
         #region 管理能被剔除的单位
 
+        public void Clear()
+        {
+            _hizOccludees.Clear();
+        }
+
         public void Register(HizOccludee occludee)
         {
             _hizOccludees.Add(occludee.gameObject, occludee);
@@ -82,11 +87,13 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
 
             foreach (var (_, occludee) in _hizOccludees)
             {
-                if (true)//occludee.IsInCameraView())
-                {
-                    objs.AddRange(occludee.Occludees);
-                    bouns.AddRange(occludee.Bouns);
-                }
+                objs.AddRange(occludee.Occludees);
+                bouns.AddRange(occludee.Bouns);
+                // if (occludee.IsInCameraView())
+                // {
+                //     objs.AddRange(occludee.Occludees);
+                //     bouns.AddRange(occludee.Bouns);
+                // }
             }
         }
         #endregion

@@ -32,6 +32,8 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             
             isInCameraView = false;
             InitBox();
+
+            HizMgr.Instance.AddTreeNode(gameObject, this);
         }
 
         private void InitBox()
@@ -53,15 +55,15 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             size = maxBounds - minBounds;
         }
 
-        private void OnEnable()
-        {
-            AABBMgr.Instance?.Register(this);
-        }
-
-        private void OnDisable()
-        {
-            AABBMgr.Instance?.UnRegister(this);
-        }
+        // private void OnEnable()
+        // {
+        //     AABBMgr.Instance?.Register(this);
+        // }
+        //
+        // private void OnDisable()
+        // {
+        //     AABBMgr.Instance?.UnRegister(this);
+        // }
 
         public bool IsInCameraView()
         {

@@ -43,7 +43,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
         private int maxMipLevel = 7;
 
         public TMP_Text TMPText;
-        private TreeMgr treeMgr;
+        private TreeComponent treeComponent;
 
         private void Awake()
         {
@@ -55,17 +55,15 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
             tempBounds = new List<Bounds>();
             tempOccludes = new List<MeshRenderer>();
             aabb = gameObject.AddComponent<AABBMgr>();
-            treeMgr = gameObject.AddComponent<TreeMgr>();
-
+            treeComponent = gameObject.AddComponent<TreeComponent>();
+            treeComponent.Init(Camera.main, new Vector3(2000, 1000, 2000));
             TMPText.text = ArabicSupport.Fix("<size=24><color=#A3A5A3>(إذا شعرت بالدوار، الرجاء إيقاف هذا الإعداد)</color></size>ضبط وضوح آلي");
         }
-
-        private int index = 0;
-        public void AddTreeNode(GameObject obj)
+        
+        public void AddTreeNode(GameObject obj,HizOccludee hizOccludee)
         {
             var pos = obj.transform.position;
-            Debug.Log("AddTreeNode:" + index++ + "  " + pos);
-            treeMgr.tree.Instance(new ObjData(obj, pos, obj.transform.eulerAngles));
+            treeComponent.tree.Instance(new ObjData(hizOccludee, pos, obj.transform.eulerAngles));
         }
 
         void OnGUI()
@@ -191,6 +189,7 @@ namespace Wepie.DesertSafari.GamePlay.HizCulling
                 if (isCull && request.done && !request.hasError)
                 {
                     Profiler.BeginSample("hiz start");
+                    treeComponent.Reflesh();
                     aabb.GetAABBInfos(tempOccludes, tempBounds);
                     NativeArray<Bounds> aabbs = new NativeArray<Bounds>(tempBounds.Count, Allocator.TempJob);
                     for (int i = 0; i < tempBounds.Count; i++)
